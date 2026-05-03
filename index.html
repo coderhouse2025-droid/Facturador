@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Librería "El Sabio" - Facturación</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html5-qrcode -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- jsPDF + AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.1/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -58,6 +62,7 @@
                         <i class="fas fa-search"></i> Buscar
                     </button>
                 </div>
+                <!-- Importar CSV -->
                 <div class="mb-4">
                     <label for="csvFileInput" class="inline-flex items-center bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition duration-200">
                         <i class="fas fa-upload mr-2"></i> Importar CSV (Inventario)
@@ -116,6 +121,7 @@
     </div>
 
     <script>
+        // ========== BASE DE DATOS Y CONFIGURACIÓN ==========
         const mockDatabase = {
             books: [
                 { isbn: "9788437604947", title: "Cien años de soledad", author: "Gabriel García Márquez", price: 15.99, stock: 5 },
@@ -134,26 +140,6 @@
         let isScannerActive = false;
         const TAX_RATE = 21;
         let invoiceHistory = [];
-
-        // ========== GESTIÓN DE ESPACIO EN HISTORIAL ==========
-        function safeAddInvoiceToHistory(invoice) {
-            const maxAttempts = 3;
-            for (let attempt = 0; attempt < maxAttempts; attempt++) {
-                try {
-                    invoiceHistory.push(invoice);
-                    saveInvoiceHistory();
-                    return true;
-                } catch (e) {
-                    if (invoiceHistory.length > 0) {
-                        invoiceHistory.shift(); // elimina la factura más antigua
-                        saveInvoiceHistory();
-                    } else {
-                        break;
-                    }
-                }
-            }
-            return false;
-        }
 
         // ========== INICIALIZACIÓN ==========
         document.addEventListener('DOMContentLoaded', () => {
@@ -205,6 +191,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 stream.getTracks().forEach(track => track.stop());
+                
                 const config = {
                     fps: 10,
                     qrbox: { width: 250, height: 150 },
@@ -240,7 +227,7 @@
             document.getElementById('toggleScanner').click();
         }
 
-        function onScanError(error) { }
+        function onScanError(error) { /* ignorar */ }
 
         // ========== BÚSQUEDA ==========
         function searchManualISBN() {
@@ -252,6 +239,7 @@
 
         function processISBN(rawIsbn) {
             const cleanISBN = rawIsbn.replace(/[-\s]/g, '');
+            console.log('Buscando:', cleanISBN);
             const book = mockDatabase.books.find(b => b.isbn === cleanISBN);
             if (book) {
                 addToCart(book);
@@ -329,54 +317,58 @@
             totalsSection.classList.toggle('hidden', cart.length === 0);
         }
 
-        // ========== GENERAR FACTURA ==========
+        // ========== GENERAR FACTURA (LOGO TIPOGRÁFICO, SIN ERRORES FALSOS) ==========
         function generateInvoice() {
             if (cart.length === 0) {
                 showNotification('⚠️ Carrito vacío.', 'warning');
                 return;
             }
+
+            // Variables comunes
+            const today = new Date();
+            const invoiceNumber = 'FAC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+            const invoiceDate = today.toLocaleDateString('es-AR');
+            const invoiceTime = today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+            const dueDate = new Date(today);
+            dueDate.setDate(dueDate.getDate() + 30);
+            const dueDateStr = dueDate.toLocaleDateString('es-AR');
+            const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const tax = subtotal * (TAX_RATE / 100);
+            const total = subtotal + tax;
+
+            // Intentar generar el PDF
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const margin = 15;
-                const today = new Date();
-                const invoiceNumber = 'FAC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-                const invoiceDate = today.toLocaleDateString('es-AR');
-                const invoiceTime = today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-                const dueDate = new Date(today);
-                dueDate.setDate(dueDate.getDate() + 30);
-                const dueDateStr = dueDate.toLocaleDateString('es-AR');
 
-                const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                const tax = subtotal * (TAX_RATE / 100);
-                const total = subtotal + tax;
-
-                // Logo vectorial
+                // === LOGO CON TEXTO (como la imagen real) ===
+                // Fondo azul rectangular detrás del texto (más profesional)
                 doc.setFillColor(37, 99, 235);
-                doc.ellipse(14, 20, 4, 5.5, 'F');
-                doc.setDrawColor(255, 255, 255);
-                doc.setLineWidth(0.5);
-                doc.line(14, 14.5, 14, 25.5);
-                doc.setFillColor(37, 99, 235);
-                doc.ellipse(26, 20, 4, 5.5, 'F');
-                doc.setFillColor(255, 255, 255);
-                doc.rect(13.5, 14.5, 1, 11, 'F');
-                doc.setFillColor(220, 230, 250);
-                doc.ellipse(14, 18, 2.5, 3.5, 'F');
-                doc.ellipse(26, 18, 2.5, 3.5, 'F');
+                doc.rect(12, 10, 45, 22, 'F'); // rectángulo azul
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Librería El Sabio', 34, 20);   // centrado en el rectángulo
+                doc.setFontSize(7);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Buenos Aires', 34, 27);
 
+                // === ENCABEZADO ===
                 doc.setTextColor(0, 0, 0);
                 doc.setFontSize(18);
                 doc.setFont('helvetica', 'bold');
-                doc.text('Librería El Sabio', 35, 20);
+                // El título ya está en el logo, pero podemos repetirlo grande
+                doc.text('Librería El Sabio', 65, 18);
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'normal');
-                doc.text('NIT: 12.345.678-9', 35, 26);
-                doc.text('Calle del Conocimiento 123, Buenos Aires', 35, 31);
-                doc.text('+54 11 4567-8901', 35, 36);
-                doc.text('info@libreriaelsabio.com', 35, 41);
+                doc.text('NIT: 12.345.678-9', 65, 24);
+                doc.text('Calle del Conocimiento 123, Buenos Aires', 65, 29);
+                doc.text('+54 11 4567-8901', 65, 34);
+                doc.text('info@libreriaelsabio.com', 65, 39);
 
+                // Datos factura
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.text('FACTURA', pageWidth - margin, 20, { align: 'right' });
@@ -390,6 +382,7 @@
                 doc.setDrawColor(200);
                 doc.line(margin, 48, pageWidth - margin, 48);
 
+                // Cliente
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.text('DATOS DEL CLIENTE', margin, 56);
@@ -401,6 +394,7 @@
                 doc.text('Email: -', margin, 77);
                 doc.text('Teléfono: -', margin, 82);
 
+                // Tabla de ítems
                 const headers = ['ÍTEM', 'DESCRIPCIÓN', 'CANT.', 'U. MEDIDA', 'PRECIO UNIT.', 'TOTAL'];
                 const rows = cart.map((item, idx) => [
                     (idx + 1).toString(),
@@ -431,12 +425,14 @@
 
                 const finalY = doc.lastAutoTable.finalY + 8;
 
+                // Observaciones
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'italic');
                 doc.text('Gracias por su preferencia.', margin, finalY);
                 doc.text('Todos los libros cuentan con garantía de satisfacción.', margin, finalY + 5);
                 doc.text('Para cambios o devoluciones, presente esta factura.', margin, finalY + 10);
 
+                // Totales
                 const totalsX = pageWidth - margin - 60;
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8);
@@ -452,6 +448,7 @@
                 doc.text('TOTAL A PAGAR', totalsX, finalY + 43);
                 doc.text(`$ ${total.toFixed(2)}`, pageWidth - margin, finalY + 43, { align: 'right' });
 
+                // Métodos de pago
                 doc.setFontSize(9);
                 doc.text('MÉTODOS DE PAGO', margin, finalY + 55);
                 doc.setFontSize(8);
@@ -464,34 +461,39 @@
                 doc.setTextColor(100);
                 doc.text('¡Gracias por su compra!', pageWidth / 2, finalY + 85, { align: 'center' });
 
+                // Descargar el PDF (esto siempre debe ir bien)
                 doc.save(`factura_${invoiceNumber}.pdf`);
 
-                // Guardar historial con gestión de espacio
-                const invoiceData = {
-                    number: invoiceNumber,
-                    date: invoiceDate + ' ' + invoiceTime,
-                    items: cart.map(item => ({ ...item })),
-                    subtotal: subtotal,
-                    tax: tax,
-                    total: total
-                };
-
-                if (!safeAddInvoiceToHistory(invoiceData)) {
-                    showNotification('📄 Factura generada. No se pudo guardar en el historial (memoria llena).', 'warning');
-                } else {
+                // Ahora guardar historial, pero si falla no mostrar error grave
+                try {
+                    const invoiceData = {
+                        number: invoiceNumber,
+                        date: invoiceDate + ' ' + invoiceTime,
+                        items: cart.map(item => ({ ...item })),
+                        subtotal: subtotal,
+                        tax: tax,
+                        total: total
+                    };
+                    invoiceHistory.push(invoiceData);
+                    saveInvoiceHistory();
                     updateHistoryUI();
                     showNotification('📄 Factura generada y guardada en el historial.', 'success');
+                } catch (histError) {
+                    console.warn('Historial no guardado:', histError);
+                    showNotification('📄 Factura generada. (Historial no disponible)', 'warning');
                 }
 
+                // Limpiar carrito
                 setTimeout(() => {
                     cart = [];
                     updateCart();
                     saveCartToLocalStorage();
                 }, 2000);
 
-            } catch (e) {
-                console.error(e);
-                showNotification('❌ Error al generar la factura.', 'error');
+            } catch (pdfError) {
+                // Solo si el PDF en sí falla, mostramos error
+                console.error('Error al crear el PDF:', pdfError);
+                showNotification('❌ Error al generar la factura. Revisá la consola.', 'error');
             }
         }
 
@@ -658,6 +660,7 @@
             updateCart();
         }
 
+        // ========== NOTIFICACIONES ==========
         function showNotification(msg, type) {
             const notif = document.getElementById('notification');
             notif.className = `notification ${type}`;
