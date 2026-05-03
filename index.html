@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Librería - Sistema de Facturación</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.1/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="flex items-center justify-center mb-4">
+                <i class="fas fa-book-open text-4xl text-blue-600 mr-3"></i>
+                <h1 class="text-3xl font-bold text-gray-800">Librería "El Sabio"</h1>
+            </div>
+            <p class="text-gray-600">Sistema de Facturación con Escáner de Código de Barras</p>
+        </header>
+
+        <!-- Main Content -->
+        <main class="bg-white rounded-lg shadow-lg p-6">
+            
+            <!-- Scanner Section -->
+            <section id="scannerSection" class="mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold text-gray-700">
+                        <i class="fas fa-barcode mr-2"></i>Escáner de Códigos
+                    </h2>
+                    <button id="toggleScanner" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200">
+                        <i class="fas fa-camera mr-2"></i>Activar Escáner
+                    </button>
+                </div>
+                
+                <!-- Scanner Container -->
+                <div id="reader" class="hidden border-2 border-dashed border-gray-300 rounded-lg p-4 mb-4"></div>
+                
+                <!-- Manual ISBN Input -->
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="isbnInput" placeholder="Ingresa ISBN manualmente..." 
+                           class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <button id="searchManual" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition duration-200">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                
+                <!-- Notification Area -->
+                <div id="notification" class="hidden transition-all duration-300"></div>
+            </section>
+
+            <!-- Cart Section -->
+            <section id="cartSection">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">
+                    <i class="fas fa-shopping-cart mr-2"></i>Venta Actual
+                </h2>
+                
+                <!-- Cart Table -->
+                <div class="overflow-x-auto">
+                    <table id="cartTable" class="w-full mb-4">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">ISBN</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Título</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Autor</th>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Precio</th>
+                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cartBody">
+                            <!-- Cart items will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Empty Cart Message -->
+                <div id="emptyCart" class="text-center py-8 text-gray-500">
+                    <i class="fas fa-shopping-cart text-4xl mb-3"></i>
+                    <p>No hay productos en la venta actual</p>
+                </div>
+                
+                <!-- Totals Section -->
+                <div id="totalsSection" class="hidden">
+                    <div class="border-t pt-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Subtotal:</span>
+                            <span id="subtotal" class="font-semibold">$0.00</span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">IVA (21%):</span>
+                            <span id="tax" class="font-semibold">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-lg font-bold pt-2 border-t">
+                            <span>Total:</span>
+                            <span id="total">$0.00</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Generate Invoice Button -->
+                    <button id="generateInvoice" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg mt-6 transition duration-200">
+                        <i class="fas fa-file-pdf mr-2"></i>Finalizar Venta y Generar Factura
+                    </button>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="text-center mt-6 text-gray-600 text-sm">
+            <p>© 2024 Librería "El Sabio" - Todos los derechos reservados</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
