@@ -4,13 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Librería "El Sabio" - Facturación</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- html5-qrcode -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <!-- jsPDF + AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.1/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -62,7 +58,6 @@
                         <i class="fas fa-search"></i> Buscar
                     </button>
                 </div>
-                <!-- Importar CSV -->
                 <div class="mb-4">
                     <label for="csvFileInput" class="inline-flex items-center bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition duration-200">
                         <i class="fas fa-upload mr-2"></i> Importar CSV (Inventario)
@@ -121,7 +116,6 @@
     </div>
 
     <script>
-        // ========== BASE DE DATOS Y CONFIGURACIÓN ==========
         const mockDatabase = {
             books: [
                 { isbn: "9788437604947", title: "Cien años de soledad", author: "Gabriel García Márquez", price: 15.99, stock: 5 },
@@ -141,16 +135,34 @@
         const TAX_RATE = 21;
         let invoiceHistory = [];
 
+        // ========== GESTIÓN DE ESPACIO EN HISTORIAL ==========
+        function safeAddInvoiceToHistory(invoice) {
+            const maxAttempts = 3;
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                try {
+                    invoiceHistory.push(invoice);
+                    saveInvoiceHistory();
+                    return true;
+                } catch (e) {
+                    if (invoiceHistory.length > 0) {
+                        invoiceHistory.shift(); // elimina la factura más antigua
+                        saveInvoiceHistory();
+                    } else {
+                        break;
+                    }
+                }
+            }
+            return false;
+        }
+
         // ========== INICIALIZACIÓN ==========
         document.addEventListener('DOMContentLoaded', () => {
-            // Aviso de contexto seguro para cámara
             if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
                 document.getElementById('securityNotice').classList.remove('hidden');
                 document.getElementById('securityMsg').textContent = 
                     '⚠️ La cámara solo funciona en conexión segura (https:// o localhost). Para usar el escáner, abrí esta página desde GitHub Pages o un servidor local. La búsqueda manual y demás funciones están disponibles.';
             }
 
-            // Eventos
             document.getElementById('toggleScanner').addEventListener('click', toggleScanner);
             document.getElementById('searchManual').addEventListener('click', searchManualISBN);
             document.getElementById('generateInvoice').addEventListener('click', generateInvoice);
@@ -191,10 +203,8 @@
 
         async function startScanner() {
             try {
-                // Pedir permiso explícito
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 stream.getTracks().forEach(track => track.stop());
-                
                 const config = {
                     fps: 10,
                     qrbox: { width: 250, height: 150 },
@@ -230,7 +240,7 @@
             document.getElementById('toggleScanner').click();
         }
 
-        function onScanError(error) { /* ignorar */ }
+        function onScanError(error) { }
 
         // ========== BÚSQUEDA ==========
         function searchManualISBN() {
@@ -242,7 +252,6 @@
 
         function processISBN(rawIsbn) {
             const cleanISBN = rawIsbn.replace(/[-\s]/g, '');
-            console.log('Buscando:', cleanISBN);
             const book = mockDatabase.books.find(b => b.isbn === cleanISBN);
             if (book) {
                 addToCart(book);
@@ -320,7 +329,7 @@
             totalsSection.classList.toggle('hidden', cart.length === 0);
         }
 
-        // ========== GENERAR FACTURA (NUEVO FORMATO, LOGO VECTORIAL) ==========
+        // ========== GENERAR FACTURA ==========
         function generateInvoice() {
             if (cart.length === 0) {
                 showNotification('⚠️ Carrito vacío.', 'warning');
@@ -343,26 +352,20 @@
                 const tax = subtotal * (TAX_RATE / 100);
                 const total = subtotal + tax;
 
-                // --- LOGO DIBUJADO (libro abierto) ---
+                // Logo vectorial
                 doc.setFillColor(37, 99, 235);
-                // Página izquierda (óvalo)
                 doc.ellipse(14, 20, 4, 5.5, 'F');
-                // Línea central blanca (lomo)
                 doc.setDrawColor(255, 255, 255);
                 doc.setLineWidth(0.5);
                 doc.line(14, 14.5, 14, 25.5);
-                // Página derecha (óvalo)
                 doc.setFillColor(37, 99, 235);
                 doc.ellipse(26, 20, 4, 5.5, 'F');
-                // Refuerzo del lomo
                 doc.setFillColor(255, 255, 255);
                 doc.rect(13.5, 14.5, 1, 11, 'F');
-                // Detalles claros para simular hojas
                 doc.setFillColor(220, 230, 250);
                 doc.ellipse(14, 18, 2.5, 3.5, 'F');
                 doc.ellipse(26, 18, 2.5, 3.5, 'F');
 
-                // --- ENCABEZADO ---
                 doc.setTextColor(0, 0, 0);
                 doc.setFontSize(18);
                 doc.setFont('helvetica', 'bold');
@@ -374,7 +377,6 @@
                 doc.text('+54 11 4567-8901', 35, 36);
                 doc.text('info@libreriaelsabio.com', 35, 41);
 
-                // Datos de la factura
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.text('FACTURA', pageWidth - margin, 20, { align: 'right' });
@@ -388,7 +390,6 @@
                 doc.setDrawColor(200);
                 doc.line(margin, 48, pageWidth - margin, 48);
 
-                // Datos del cliente
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
                 doc.text('DATOS DEL CLIENTE', margin, 56);
@@ -400,7 +401,6 @@
                 doc.text('Email: -', margin, 77);
                 doc.text('Teléfono: -', margin, 82);
 
-                // Tabla de ítems
                 const headers = ['ÍTEM', 'DESCRIPCIÓN', 'CANT.', 'U. MEDIDA', 'PRECIO UNIT.', 'TOTAL'];
                 const rows = cart.map((item, idx) => [
                     (idx + 1).toString(),
@@ -431,14 +431,12 @@
 
                 const finalY = doc.lastAutoTable.finalY + 8;
 
-                // Observaciones
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'italic');
                 doc.text('Gracias por su preferencia.', margin, finalY);
                 doc.text('Todos los libros cuentan con garantía de satisfacción.', margin, finalY + 5);
                 doc.text('Para cambios o devoluciones, presente esta factura.', margin, finalY + 10);
 
-                // Totales
                 const totalsX = pageWidth - margin - 60;
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8);
@@ -454,7 +452,6 @@
                 doc.text('TOTAL A PAGAR', totalsX, finalY + 43);
                 doc.text(`$ ${total.toFixed(2)}`, pageWidth - margin, finalY + 43, { align: 'right' });
 
-                // Métodos de pago
                 doc.setFontSize(9);
                 doc.text('MÉTODOS DE PAGO', margin, finalY + 55);
                 doc.setFontSize(8);
@@ -467,29 +464,25 @@
                 doc.setTextColor(100);
                 doc.text('¡Gracias por su compra!', pageWidth / 2, finalY + 85, { align: 'center' });
 
-                // Descargar PDF (esto siempre funciona si llegó aquí)
                 doc.save(`factura_${invoiceNumber}.pdf`);
 
-                // Guardar en historial (si falla, solo aviso)
-                try {
-                    const invoiceData = {
-                        number: invoiceNumber,
-                        date: invoiceDate + ' ' + invoiceTime,
-                        items: cart.map(item => ({ ...item })),
-                        subtotal: subtotal,
-                        tax: tax,
-                        total: total
-                    };
-                    invoiceHistory.push(invoiceData);
-                    saveInvoiceHistory();
+                // Guardar historial con gestión de espacio
+                const invoiceData = {
+                    number: invoiceNumber,
+                    date: invoiceDate + ' ' + invoiceTime,
+                    items: cart.map(item => ({ ...item })),
+                    subtotal: subtotal,
+                    tax: tax,
+                    total: total
+                };
+
+                if (!safeAddInvoiceToHistory(invoiceData)) {
+                    showNotification('📄 Factura generada. No se pudo guardar en el historial (memoria llena).', 'warning');
+                } else {
                     updateHistoryUI();
                     showNotification('📄 Factura generada y guardada en el historial.', 'success');
-                } catch (histError) {
-                    console.warn('No se pudo guardar el historial:', histError);
-                    showNotification('📄 Factura generada. No se pudo guardar en el historial (memoria llena).', 'warning');
                 }
 
-                // Limpiar carrito
                 setTimeout(() => {
                     cart = [];
                     updateCart();
@@ -665,7 +658,6 @@
             updateCart();
         }
 
-        // ========== NOTIFICACIONES ==========
         function showNotification(msg, type) {
             const notif = document.getElementById('notification');
             notif.className = `notification ${type}`;
