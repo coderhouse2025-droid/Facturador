@@ -140,8 +140,8 @@ El archivo se descarga con el nombre `factura_FAC-XXXX.pdf`.
 
 ## 📸 Capturas de Pantalla
 
-> <img width="461" height="638" alt="image" src="https://github.com/user-attachments/assets/44c60059-c26e-4d33-8a98-fd9041eb8194" />
-><img width="467" height="380" alt="image" src="https://github.com/user-attachments/assets/d8fff872-d8e9-4f43-aa55-4f04edf23a03" />
+> <img width="573" height="638" alt="image" src="https://github.com/user-attachments/assets/eae0e9ee-9959-4f5c-9863-a852664e9064" />
+><img width="598" height="509" alt="image" src="https://github.com/user-attachments/assets/7c2e5998-0998-4132-a896-1cf4c957b837" />
 ><img width="726" height="430" alt="image" src="https://github.com/user-attachments/assets/c4841ab0-7411-4d0c-9e3e-c8ee49828a37" />
 
 
