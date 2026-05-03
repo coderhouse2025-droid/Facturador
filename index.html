@@ -23,14 +23,12 @@
         @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         #toggleScanner.active { background-color: #dc2626; }
         #toggleScanner.active:hover { background-color: #b91c1c; }
-        /* Mejoras de tabla */
+        .security-warning { background-color: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 1rem; }
+        .history-item { border-bottom: 1px solid #e5e7eb; padding: 0.5rem 0; }
+        .history-item:last-child { border-bottom: none; }
         @media (max-width: 640px) {
             #cartTable th, #cartTable td { padding: 0.5rem 0.25rem; font-size: 0.75rem; }
-            #cartTable th:nth-child(1), #cartTable td:nth-child(1) { width: 30%; }
-            #cartTable th:nth-child(4), #cartTable td:nth-child(4) { text-align: right; }
         }
-        /* Aviso de contexto seguro */
-        .security-warning { background-color: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 1rem; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -41,7 +39,6 @@
                 <h1 class="text-3xl font-bold text-gray-800">Librería "El Sabio"</h1>
             </div>
             <p class="text-gray-600">Sistema de Facturación con Escáner de Código de Barras</p>
-            <!-- Aviso importante sobre la cámara -->
             <div id="securityNotice" class="security-warning hidden mt-4">
                 <i class="fas fa-exclamation-triangle mr-2"></i>
                 <span id="securityMsg"></span>
@@ -65,10 +62,18 @@
                         <i class="fas fa-search"></i> Buscar
                     </button>
                 </div>
+                <!-- Importar CSV -->
+                <div class="mb-4">
+                    <label for="csvFileInput" class="inline-flex items-center bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition duration-200">
+                        <i class="fas fa-upload mr-2"></i> Importar CSV (Inventario)
+                    </label>
+                    <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+                    <p class="text-xs text-gray-500 mt-1">Carga un archivo CSV con los libros (columnas: Código, Nombre, Autor, Precio)</p>
+                </div>
                 <div id="notification" class="hidden transition-all duration-300"></div>
             </section>
 
-            <!-- Cart Section -->
+            <!-- Carrito Section -->
             <section>
                 <h2 class="text-xl font-semibold text-gray-700 mb-4"><i class="fas fa-shopping-cart mr-2"></i>Venta Actual</h2>
                 <div id="emptyCart" class="text-center py-8 text-gray-500">
@@ -98,12 +103,25 @@
                     </button>
                 </div>
             </section>
+
+            <!-- Historial de Movimientos -->
+            <section class="mt-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-700"><i class="fas fa-history mr-2"></i>Historial de Facturas</h2>
+                    <button id="exportHistory" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition duration-200">
+                        <i class="fas fa-file-pdf mr-2"></i> Exportar Movimientos (PDF)
+                    </button>
+                </div>
+                <div id="historyContainer" class="text-sm text-gray-600">
+                    <p id="noHistory" class="text-center py-4">No hay facturas registradas aún.</p>
+                </div>
+            </section>
         </main>
         <footer class="text-center mt-6 text-gray-600 text-sm">© 2024 Librería "El Sabio" - Todos los derechos reservados</footer>
     </div>
 
     <script>
-        // ========== BASE DE DATOS ==========
+        // ========== BASE DE DATOS Y CONFIGURACIÓN ==========
         const mockDatabase = {
             books: [
                 { isbn: "9788437604947", title: "Cien años de soledad", author: "Gabriel García Márquez", price: 15.99, stock: 5 },
@@ -121,25 +139,32 @@
         let html5QrCode;
         let isScannerActive = false;
         const TAX_RATE = 21;
+        let invoiceHistory = []; // Array de facturas generadas
 
+        // ========== INICIALIZACIÓN ==========
         document.addEventListener('DOMContentLoaded', () => {
-            // Mostrar advertencia si no hay contexto seguro
+            // Verificar contexto seguro para cámara
             if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                const notice = document.getElementById('securityNotice');
-                notice.classList.remove('hidden');
+                document.getElementById('securityNotice').classList.remove('hidden');
                 document.getElementById('securityMsg').textContent = 
-                    '⚠️ La cámara solo funciona en conexión segura (https:// o localhost). Para probar el escáner, abrí esta página desde GitHub Pages o un servidor local. Ahora podés buscar ISBN manualmente.';
+                    '⚠️ La cámara solo funciona en conexión segura (https:// o localhost). Para usar el escáner, abrí esta página desde GitHub Pages o un servidor local. La búsqueda manual y las demás funciones están disponibles.';
             }
 
+            // Eventos
             document.getElementById('toggleScanner').addEventListener('click', toggleScanner);
             document.getElementById('searchManual').addEventListener('click', searchManualISBN);
             document.getElementById('generateInvoice').addEventListener('click', generateInvoice);
+            document.getElementById('exportHistory').addEventListener('click', exportHistoryPDF);
             document.getElementById('isbnInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchManualISBN();
             });
+            document.getElementById('csvFileInput').addEventListener('change', handleFileUpload);
 
             html5QrCode = new Html5Qrcode("reader");
             loadCartFromLocalStorage();
+            loadInvoiceHistory();
+            updateCart();
+            updateHistoryUI();
             updateTotalsVisibility();
         });
 
@@ -154,7 +179,7 @@
                 readerElement.classList.add('hidden');
             } else {
                 if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                    showNotification('🔒 La cámara requiere un servidor local o HTTPS. Usá Live Server o GitHub Pages.', 'warning');
+                    showNotification('🔒 La cámara requiere un servidor local o HTTPS.', 'warning');
                     return;
                 }
                 startScanner();
@@ -166,6 +191,8 @@
 
         async function startScanner() {
             try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                stream.getTracks().forEach(track => track.stop());
                 const config = {
                     fps: 10,
                     qrbox: { width: 250, height: 150 },
@@ -177,7 +204,11 @@
                 showNotification('📷 Escáner activo. Apuntá al código de barras.', 'success');
             } catch (error) {
                 console.error(error);
-                showNotification('❌ No se pudo acceder a la cámara. ¿Concediste permiso?', 'error');
+                if (error.name === 'NotAllowedError') {
+                    showNotification('❌ Permiso de cámara denegado. Habilita la cámara en la configuración del sitio.', 'error');
+                } else {
+                    showNotification('❌ No se pudo acceder a la cámara.', 'error');
+                }
                 document.getElementById('toggleScanner').click();
             }
         }
@@ -194,10 +225,10 @@
         function onScanSuccess(decodedText) {
             stopScanner();
             processISBN(decodedText.trim());
-            document.getElementById('toggleScanner').click(); // volver a estado inicial
+            document.getElementById('toggleScanner').click();
         }
 
-        function onScanError(error) { /* no molestar al usuario */ }
+        function onScanError(error) { /* ignorar */ }
 
         // ========== BÚSQUEDA ==========
         function searchManualISBN() {
@@ -274,7 +305,7 @@
         }
 
         function updateTotals() {
-            const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+            const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
             const tax = subtotal * (TAX_RATE / 100);
             const total = subtotal + tax;
             document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
@@ -287,116 +318,327 @@
             totalsSection.classList.toggle('hidden', cart.length === 0);
         }
 
-        // ========== FACTURA PDF (estructura uniforme) ==========
+        // ========== FACTURA EN FORMATO NUEVO ==========
         function generateInvoice() {
             if (cart.length === 0) { showNotification('⚠️ Carrito vacío.', 'warning'); return; }
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const margin = 15;
-                const usableWidth = pageWidth - 2 * margin;
-                
-                const subtotal = cart.reduce((s, i) => s + i.price, 0);
-                const tax = subtotal * (TAX_RATE/100);
+                const today = new Date();
+                const invoiceNumber = 'FAC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+                const invoiceDate = today.toLocaleDateString('es-AR');
+                const invoiceTime = today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+                const dueDate = new Date(today);
+                dueDate.setDate(dueDate.getDate() + 30);
+                const dueDateStr = dueDate.toLocaleDateString('es-AR');
+
+                const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const tax = subtotal * (TAX_RATE / 100);
                 const total = subtotal + tax;
-                const invoiceNumber = 'FAC-' + Math.floor(Math.random()*10000).toString().padStart(4,'0');
-                const invoiceDate = new Date().toLocaleDateString('es-AR');
 
                 // Encabezado
-                doc.setFillColor(37,99,235);
-                doc.rect(0, 0, pageWidth, 40, 'F');
-                doc.setTextColor(255,255,255);
-                doc.setFontSize(22);
+                doc.setFillColor(37, 99, 235);
+                doc.circle(20, 20, 8, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(12);
+                doc.text('📚', 16, 24);
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(18);
                 doc.setFont('helvetica', 'bold');
-                doc.text('Librería El Sabio', margin, 25);
-                doc.setFontSize(9);
+                doc.text('Librería El Sabio', 40, 20);
+                doc.setFontSize(8);
                 doc.setFont('helvetica', 'normal');
-                doc.text('Calle del Conocimiento 123, Buenos Aires', margin, 33);
-                doc.text('info@libreriaelsabio.com - Tel: (011) 4567-8901', margin, 38);
+                doc.text('NIT: 12.345.678-9', 40, 26);
+                doc.text('Calle del Conocimiento 123, Buenos Aires', 40, 31);
+                doc.text('+54 11 4567-8901', 40, 36);
+                doc.text('info@libreriaelsabio.com', 40, 41);
 
-                // Datos factura
-                doc.setTextColor(0,0,0);
+                // Datos de factura
                 doc.setFontSize(11);
-                doc.text('FACTURA', pageWidth - margin, 50, { align: 'right' });
-                doc.setFontSize(9);
-                doc.text(`Nº ${invoiceNumber}`, pageWidth - margin, 57, { align: 'right' });
-                doc.text(`Fecha: ${invoiceDate}`, pageWidth - margin, 64, { align: 'right' });
-                doc.text('Cliente: Consumidor Final', margin, 60);
-                doc.text('CUIT: 00-00000000-0', margin, 66);
+                doc.setFont('helvetica', 'bold');
+                doc.text('FACTURA', pageWidth - margin, 20, { align: 'right' });
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`No. ${invoiceNumber}`, pageWidth - margin, 26, { align: 'right' });
+                doc.text(`Fecha: ${invoiceDate}`, pageWidth - margin, 31, { align: 'right' });
+                doc.text(`Hora: ${invoiceTime}`, pageWidth - margin, 36, { align: 'right' });
+                doc.text(`Vencimiento: ${dueDateStr}`, pageWidth - margin, 41, { align: 'right' });
 
-                // Tabla
-                const headers = ['ISBN', 'Título', 'Autor', 'Precio', 'Importe'];
-                const rows = cart.map(item => [
-                    item.isbn,
-                    item.title,
-                    item.author,
-                    `$${item.price.toFixed(2)}`,
-                    `$${item.price.toFixed(2)}`
+                doc.setDrawColor(200);
+                doc.line(margin, 48, pageWidth - margin, 48);
+
+                // Datos del cliente
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text('DATOS DEL CLIENTE', margin, 56);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Cliente: Consumidor Final', margin, 62);
+                doc.text('NIT / CC: 00-00000000-0', margin, 67);
+                doc.text('Dirección: -', margin, 72);
+                doc.text('Email: -', margin, 77);
+                doc.text('Teléfono: -', margin, 82);
+
+                // Tabla de ítems
+                const headers = ['ÍTEM', 'DESCRIPCIÓN', 'CANT.', 'U. MEDIDA', 'PRECIO UNIT.', 'TOTAL'];
+                const rows = cart.map((item, idx) => [
+                    (idx + 1).toString(),
+                    `${item.title} - ${item.author}`,
+                    item.quantity.toString(),
+                    'Und',
+                    `$ ${item.price.toFixed(2)}`,
+                    `$ ${(item.price * item.quantity).toFixed(2)}`
                 ]);
 
                 doc.autoTable({
-                    startY: 75,
+                    startY: 90,
                     margin: { left: margin, right: margin },
                     head: [headers],
                     body: rows,
                     theme: 'grid',
-                    styles: { fontSize: 8, cellPadding: 2 },
-                    headStyles: { fillColor: [37,99,235], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+                    styles: { fontSize: 7, cellPadding: 2 },
+                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 7 },
                     columnStyles: {
-                        0: { cellWidth: 32 },
-                        1: { cellWidth: 45 },
-                        2: { cellWidth: 40 },
-                        3: { cellWidth: 25, halign: 'right' },
-                        4: { cellWidth: 25, halign: 'right' }
-                    },
-                    tableWidth: 'auto',
-                    didParseCell: (data) => {
-                        // Ajustar ancho automáticamente dentro de lo posible
+                        0: { cellWidth: 10, halign: 'center' },
+                        1: { cellWidth: 50 },
+                        2: { cellWidth: 12, halign: 'center' },
+                        3: { cellWidth: 18, halign: 'center' },
+                        4: { cellWidth: 26, halign: 'right' },
+                        5: { cellWidth: 26, halign: 'right' }
                     }
                 });
 
-                const finalY = doc.lastAutoTable.finalY + 10;
+                const finalY = doc.lastAutoTable.finalY + 8;
 
-                // Totales
-                doc.setFontSize(10);
-                doc.text('Subtotal:', pageWidth - margin - 60, finalY);
-                doc.text(`$${subtotal.toFixed(2)}`, pageWidth - margin, finalY, { align: 'right' });
-                doc.text(`IVA (21%):`, pageWidth - margin - 60, finalY + 7);
-                doc.text(`$${tax.toFixed(2)}`, pageWidth - margin, finalY + 7, { align: 'right' });
-                doc.setFontSize(12);
-                doc.setFont('helvetica', 'bold');
-                doc.text('TOTAL:', pageWidth - margin - 60, finalY + 17);
-                // Rectángulo de fondo
-                doc.setFillColor(37,99,235);
-                doc.rect(pageWidth - margin - 40, finalY + 10, 40, 10, 'F');
-                doc.setTextColor(255,255,255);
-                doc.text(`$${total.toFixed(2)}`, pageWidth - margin, finalY + 17, { align: 'right' });
-
-                // Pie
-                doc.setTextColor(120);
+                // Observaciones
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'italic');
-                const pageHeight = doc.internal.pageSize.getHeight();
-                doc.text('Gracias por su compra - Librería El Sabio', pageWidth / 2, pageHeight - 15, { align: 'center' });
+                doc.text('Gracias por su preferencia.', margin, finalY);
+                doc.text('Todos los libros cuentan con garantía de satisfacción.', margin, finalY + 5);
+                doc.text('Para cambios o devoluciones, presente esta factura.', margin, finalY + 10);
+
+                // Totales
+                const totalsX = pageWidth - margin - 60;
+                doc.setFont('helvetica', 'normal');
+                doc.text('SUBTOTAL', totalsX, finalY + 20);
+                doc.text(`$ ${subtotal.toFixed(2)}`, pageWidth - margin, finalY + 20, { align: 'right' });
+                doc.text('DESCUENTO', totalsX, finalY + 27);
+                doc.text('$ 0.00', pageWidth - margin, finalY + 27, { align: 'right' });
+                doc.text(`IVA (${TAX_RATE}%)`, totalsX, finalY + 34);
+                doc.text(`$ ${tax.toFixed(2)}`, pageWidth - margin, finalY + 34, { align: 'right' });
+                doc.line(totalsX, finalY + 37, pageWidth - margin, finalY + 37);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text('TOTAL A PAGAR', totalsX, finalY + 43);
+                doc.text(`$ ${total.toFixed(2)}`, pageWidth - margin, finalY + 43, { align: 'right' });
+
+                // Métodos de pago
+                doc.setFontSize(9);
+                doc.text('MÉTODOS DE PAGO', margin, finalY + 55);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.text('• Transferencia: Banco Nación, Cuenta Corriente No. 123456789', margin, finalY + 62);
+                doc.text('• Tarjeta: Débito y crédito (Visa, Mastercard)', margin, finalY + 68);
+                doc.text('• Efectivo: Pago en nuestro local', margin, finalY + 74);
+
+                doc.setFont('helvetica', 'italic');
+                doc.setTextColor(100);
+                doc.text('¡Gracias por su compra!', pageWidth / 2, finalY + 85, { align: 'center' });
+
+                // Guardar la factura en el historial
+                const invoiceData = {
+                    number: invoiceNumber,
+                    date: invoiceDate + ' ' + invoiceTime,
+                    items: cart.map(item => ({ ...item })),
+                    subtotal: subtotal,
+                    tax: tax,
+                    total: total
+                };
+                invoiceHistory.push(invoiceData);
+                saveInvoiceHistory();
 
                 doc.save(`factura_${invoiceNumber}.pdf`);
-                showNotification('📄 Factura generada. Limpiando carrito...', 'success');
-                setTimeout(() => { cart = []; updateCart(); saveCartToLocalStorage(); }, 2000);
+                showNotification('📄 Factura generada y guardada en el historial.', 'success');
+
+                // Limpiar carrito después de 2 segundos
+                setTimeout(() => {
+                    cart = [];
+                    updateCart();
+                    saveCartToLocalStorage();
+                }, 2000);
+
+                updateHistoryUI();
             } catch (e) {
                 console.error(e);
                 showNotification('❌ Error al generar la factura.', 'error');
             }
         }
 
-        // ========== PERSISTENCIA ==========
-        function saveCartToLocalStorage() { localStorage.setItem('libraryCart', JSON.stringify(cart)); }
+        // ========== HISTORIAL DE FACTURAS ==========
+        function loadInvoiceHistory() {
+            try {
+                const data = localStorage.getItem('invoiceHistory');
+                invoiceHistory = data ? JSON.parse(data) : [];
+            } catch (e) {
+                invoiceHistory = [];
+            }
+            updateHistoryUI();
+        }
+
+        function saveInvoiceHistory() {
+            localStorage.setItem('invoiceHistory', JSON.stringify(invoiceHistory));
+        }
+
+        function updateHistoryUI() {
+            const container = document.getElementById('historyContainer');
+            const noHistory = document.getElementById('noHistory');
+            container.innerHTML = '';
+
+            if (invoiceHistory.length === 0) {
+                noHistory.classList.remove('hidden');
+                return;
+            }
+            noHistory.classList.add('hidden');
+
+            invoiceHistory.slice().reverse().forEach(inv => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold">${inv.number}</span>
+                        <span class="text-xs text-gray-500">${inv.date}</span>
+                    </div>
+                    <div class="flex justify-between text-xs mt-1">
+                        <span>${inv.items.length} producto(s)</span>
+                        <span class="font-bold">Total: $${inv.total.toFixed(2)}</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function exportHistoryPDF() {
+            if (invoiceHistory.length === 0) {
+                showNotification('⚠️ No hay facturas en el historial.', 'warning');
+                return;
+            }
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const margin = 10;
+                doc.setFontSize(16);
+                doc.text('Historial de Facturaciones', pageWidth / 2, 15, { align: 'center' });
+                doc.setFontSize(10);
+                doc.text(`Generado: ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 22, { align: 'center' });
+
+                const headers = ['Nº Factura', 'Fecha', 'Productos', 'Subtotal', 'IVA', 'Total'];
+                const rows = invoiceHistory.map(inv => [
+                    inv.number,
+                    inv.date,
+                    inv.items.length.toString(),
+                    `$ ${inv.subtotal.toFixed(2)}`,
+                    `$ ${inv.tax.toFixed(2)}`,
+                    `$ ${inv.total.toFixed(2)}`
+                ]);
+
+                doc.autoTable({
+                    startY: 30,
+                    margin: { left: margin, right: margin },
+                    head: [headers],
+                    body: rows,
+                    theme: 'striped',
+                    styles: { fontSize: 8 },
+                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+                    columnStyles: {
+                        0: { cellWidth: 30 },
+                        1: { cellWidth: 45 },
+                        2: { cellWidth: 25, halign: 'center' },
+                        3: { cellWidth: 35, halign: 'right' },
+                        4: { cellWidth: 35, halign: 'right' },
+                        5: { cellWidth: 35, halign: 'right' }
+                    }
+                });
+
+                // Total general
+                const finalY = doc.lastAutoTable.finalY + 10;
+                const totalGlobal = invoiceHistory.reduce((sum, inv) => sum + inv.total, 0);
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Total facturado: $ ${totalGlobal.toFixed(2)}`, pageWidth - margin, finalY, { align: 'right' });
+
+                doc.save('historial_facturas.pdf');
+                showNotification('📊 Historial exportado en PDF.', 'success');
+            } catch (e) {
+                console.error(e);
+                showNotification('❌ Error al exportar historial.', 'error');
+            }
+        }
+
+        // ========== IMPORTAR CSV ==========
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csv = e.target.result;
+                const lines = csv.split('\n').filter(line => line.trim() !== '');
+                if (lines.length < 2) {
+                    showNotification('❌ El archivo CSV está vacío o no tiene datos.', 'error');
+                    return;
+                }
+                // Asumimos que la primera línea es encabezado: ID,"Código","Nombre","Marca/Autor","Precio",...
+                const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+                const isbnIdx = headers.findIndex(h => h === 'Código' || h === 'codigo');
+                const titleIdx = headers.findIndex(h => h === 'Nombre' || h === 'nombre');
+                const authorIdx = headers.findIndex(h => h === 'Marca/Autor' || h === 'autor');
+                const priceIdx = headers.findIndex(h => h === 'Precio' || h === 'precio');
+
+                if (isbnIdx === -1 || titleIdx === -1 || authorIdx === -1 || priceIdx === -1) {
+                    showNotification('❌ El CSV debe tener columnas: Código, Nombre, Marca/Autor, Precio.', 'error');
+                    return;
+                }
+
+                const books = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const columns = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
+                    if (columns.length <= Math.max(isbnIdx, titleIdx, authorIdx, priceIdx)) continue;
+                    const isbn = columns[isbnIdx];
+                    const title = columns[titleIdx];
+                    const author = columns[authorIdx];
+                    const price = parseFloat(columns[priceIdx]);
+                    if (isbn && title && !isNaN(price)) {
+                        books.push({ isbn, title, author, price, stock: 1 });
+                    }
+                }
+
+                if (books.length > 0) {
+                    mockDatabase.books = books;
+                    showNotification(`✅ ${books.length} libros cargados desde el CSV.`, 'success');
+                } else {
+                    showNotification('❌ No se encontraron libros válidos en el archivo.', 'error');
+                }
+            };
+            reader.readAsText(file);
+            // Limpiar el input para permitir recargar el mismo archivo
+            event.target.value = '';
+        }
+
+        // ========== PERSISTENCIA DEL CARRITO ==========
+        function saveCartToLocalStorage() {
+            localStorage.setItem('libraryCart', JSON.stringify(cart));
+        }
+
         function loadCartFromLocalStorage() {
             try {
                 const data = localStorage.getItem('libraryCart');
                 cart = data ? JSON.parse(data) : [];
-            } catch (e) { cart = []; }
+            } catch (e) {
+                cart = [];
+            }
             updateCart();
         }
 
