@@ -343,30 +343,18 @@
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const margin = 15;
 
-                // === LOGO CON TEXTO (como la imagen real) ===
-                // Fondo azul rectangular detrás del texto (más profesional)
-                doc.setFillColor(37, 99, 235);
-                doc.rect(12, 10, 45, 22, 'F'); // rectángulo azul
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(14);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Librería El Sabio', 34, 20);   // centrado en el rectángulo
-                doc.setFontSize(7);
-                doc.setFont('helvetica', 'normal');
-                doc.text('Buenos Aires', 34, 27);
+                // === LOGO REAL (imagen embebida) ===
+                const logoData = 'data:image/jpeg;base64,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';
+                doc.addImage(logoData, 'JPEG', 12, 8, 55, 8);
 
                 // === ENCABEZADO ===
                 doc.setTextColor(0, 0, 0);
-                doc.setFontSize(18);
-                doc.setFont('helvetica', 'bold');
-                // El título ya está en el logo, pero podemos repetirlo grande
-                doc.text('Librería El Sabio', 65, 18);
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'normal');
-                doc.text('NIT: 12.345.678-9', 65, 24);
-                doc.text('Calle del Conocimiento 123, Buenos Aires', 65, 29);
-                doc.text('+54 11 4567-8901', 65, 34);
-                doc.text('info@libreriaelsabio.com', 65, 39);
+                doc.text('NIT: 12.345.678-9', 14, 20);
+                doc.text('Calle del Conocimiento 123, Buenos Aires', 14, 25);
+                doc.text('+54 11 4567-8901', 14, 30);
+                doc.text('info@libreriaelsabio.com', 14, 35);
 
                 // Datos factura
                 doc.setFontSize(11);
@@ -380,19 +368,19 @@
                 doc.text(`Vencimiento: ${dueDateStr}`, pageWidth - margin, 41, { align: 'right' });
 
                 doc.setDrawColor(200);
-                doc.line(margin, 48, pageWidth - margin, 48);
+                doc.line(margin, 42, pageWidth - margin, 42);
 
                 // Cliente
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'bold');
-                doc.text('DATOS DEL CLIENTE', margin, 56);
+                doc.text('DATOS DEL CLIENTE', margin, 50);
                 doc.setFontSize(8);
                 doc.setFont('helvetica', 'normal');
-                doc.text('Cliente: Consumidor Final', margin, 62);
-                doc.text('NIT / CC: 00-00000000-0', margin, 67);
-                doc.text('Dirección: -', margin, 72);
-                doc.text('Email: -', margin, 77);
-                doc.text('Teléfono: -', margin, 82);
+                doc.text('Cliente: Consumidor Final', margin, 56);
+                doc.text('NIT / CC: 00-00000000-0', margin, 61);
+                doc.text('Dirección: -', margin, 66);
+                doc.text('Email: -', margin, 71);
+                doc.text('Teléfono: -', margin, 76);
 
                 // Tabla de ítems
                 const headers = ['ÍTEM', 'DESCRIPCIÓN', 'CANT.', 'U. MEDIDA', 'PRECIO UNIT.', 'TOTAL'];
@@ -406,7 +394,7 @@
                 ]);
 
                 doc.autoTable({
-                    startY: 90,
+                    startY: 84,
                     margin: { left: margin, right: margin },
                     head: [headers],
                     body: rows,
@@ -509,7 +497,23 @@
         }
 
         function saveInvoiceHistory() {
-            localStorage.setItem('invoiceHistory', JSON.stringify(invoiceHistory));
+            try {
+                // Keep only last 20 invoices to avoid quota errors
+                if (invoiceHistory.length > 20) {
+                    invoiceHistory = invoiceHistory.slice(-20);
+                }
+                localStorage.setItem('invoiceHistory', JSON.stringify(invoiceHistory));
+            } catch (e) {
+                // If quota exceeded, remove oldest half and retry
+                console.warn('localStorage lleno, limpiando historial antiguo...');
+                invoiceHistory = invoiceHistory.slice(-10);
+                try {
+                    localStorage.setItem('invoiceHistory', JSON.stringify(invoiceHistory));
+                } catch (e2) {
+                    // Last resort: clear only invoiceHistory key
+                    localStorage.removeItem('invoiceHistory');
+                }
+            }
         }
 
         function updateHistoryUI() {
