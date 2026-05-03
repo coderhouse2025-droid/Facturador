@@ -23,6 +23,14 @@
         @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         #toggleScanner.active { background-color: #dc2626; }
         #toggleScanner.active:hover { background-color: #b91c1c; }
+        /* Mejoras de tabla */
+        @media (max-width: 640px) {
+            #cartTable th, #cartTable td { padding: 0.5rem 0.25rem; font-size: 0.75rem; }
+            #cartTable th:nth-child(1), #cartTable td:nth-child(1) { width: 30%; }
+            #cartTable th:nth-child(4), #cartTable td:nth-child(4) { text-align: right; }
+        }
+        /* Aviso de contexto seguro */
+        .security-warning { background-color: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 1rem; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -33,14 +41,19 @@
                 <h1 class="text-3xl font-bold text-gray-800">Librería "El Sabio"</h1>
             </div>
             <p class="text-gray-600">Sistema de Facturación con Escáner de Código de Barras</p>
+            <!-- Aviso importante sobre la cámara -->
+            <div id="securityNotice" class="security-warning hidden mt-4">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <span id="securityMsg"></span>
+            </div>
         </header>
 
         <main class="bg-white rounded-lg shadow-lg p-6">
             <!-- Scanner Section -->
             <section class="mb-8">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
                     <h2 class="text-xl font-semibold text-gray-700"><i class="fas fa-barcode mr-2"></i>Escáner de Códigos</h2>
-                    <button id="toggleScanner" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200">
+                    <button id="toggleScanner" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200 w-full sm:w-auto">
                         <i class="fas fa-camera mr-2"></i>Activar Escáner
                     </button>
                 </div>
@@ -62,18 +75,20 @@
                     <i class="fas fa-shopping-cart text-4xl mb-3"></i>
                     <p>No hay productos en la venta actual</p>
                 </div>
-                <table id="cartTable" class="w-full mb-4 hidden">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">ISBN</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Título</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Autor</th>
-                            <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Precio</th>
-                            <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cartBody"></tbody>
-                </table>
+                <div class="overflow-x-auto">
+                    <table id="cartTable" class="w-full mb-4 hidden">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">ISBN</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Título</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Autor</th>
+                                <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Precio</th>
+                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cartBody"></tbody>
+                    </table>
+                </div>
                 <div id="totalsSection" class="hidden border-t pt-4">
                     <div class="flex justify-between mb-2"><span>Subtotal:</span><span id="subtotal" class="font-semibold">$0.00</span></div>
                     <div class="flex justify-between mb-2"><span>IVA (21%):</span><span id="tax" class="font-semibold">$0.00</span></div>
@@ -108,7 +123,14 @@
         const TAX_RATE = 21;
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Eventos
+            // Mostrar advertencia si no hay contexto seguro
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                const notice = document.getElementById('securityNotice');
+                notice.classList.remove('hidden');
+                document.getElementById('securityMsg').textContent = 
+                    '⚠️ La cámara solo funciona en conexión segura (https:// o localhost). Para probar el escáner, abrí esta página desde GitHub Pages o un servidor local. Ahora podés buscar ISBN manualmente.';
+            }
+
             document.getElementById('toggleScanner').addEventListener('click', toggleScanner);
             document.getElementById('searchManual').addEventListener('click', searchManualISBN);
             document.getElementById('generateInvoice').addEventListener('click', generateInvoice);
@@ -132,7 +154,7 @@
                 readerElement.classList.add('hidden');
             } else {
                 if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                    showNotification('⚠️ La cámara solo funciona en conexión segura (localhost o HTTPS). Usá Live Server.', 'warning');
+                    showNotification('🔒 La cámara requiere un servidor local o HTTPS. Usá Live Server o GitHub Pages.', 'warning');
                     return;
                 }
                 startScanner();
@@ -265,62 +287,99 @@
             totalsSection.classList.toggle('hidden', cart.length === 0);
         }
 
-        // ========== FACTURA PDF ==========
+        // ========== FACTURA PDF (estructura uniforme) ==========
         function generateInvoice() {
             if (cart.length === 0) { showNotification('⚠️ Carrito vacío.', 'warning'); return; }
             try {
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const margin = 15;
+                const usableWidth = pageWidth - 2 * margin;
+                
                 const subtotal = cart.reduce((s, i) => s + i.price, 0);
                 const tax = subtotal * (TAX_RATE/100);
                 const total = subtotal + tax;
                 const invoiceNumber = 'FAC-' + Math.floor(Math.random()*10000).toString().padStart(4,'0');
                 const invoiceDate = new Date().toLocaleDateString('es-AR');
 
+                // Encabezado
                 doc.setFillColor(37,99,235);
-                doc.rect(0,0,210,40,'F');
+                doc.rect(0, 0, pageWidth, 40, 'F');
                 doc.setTextColor(255,255,255);
                 doc.setFontSize(22);
-                doc.text('Librería El Sabio', 14, 25);
-                doc.setFontSize(8);
-                doc.text('Calle del Conocimiento 123, Buenos Aires', 14, 33);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Librería El Sabio', margin, 25);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Calle del Conocimiento 123, Buenos Aires', margin, 33);
+                doc.text('info@libreriaelsabio.com - Tel: (011) 4567-8901', margin, 38);
 
+                // Datos factura
                 doc.setTextColor(0,0,0);
-                doc.setFontSize(10);
-                doc.text('FACTURA', 170, 50, { align:'right' });
-                doc.text(`Nº ${invoiceNumber}`, 170, 57, { align:'right' });
-                doc.text(`Fecha: ${invoiceDate}`, 170, 64, { align:'right' });
-                doc.text('Cliente: Consumidor Final', 14, 62);
+                doc.setFontSize(11);
+                doc.text('FACTURA', pageWidth - margin, 50, { align: 'right' });
+                doc.setFontSize(9);
+                doc.text(`Nº ${invoiceNumber}`, pageWidth - margin, 57, { align: 'right' });
+                doc.text(`Fecha: ${invoiceDate}`, pageWidth - margin, 64, { align: 'right' });
+                doc.text('Cliente: Consumidor Final', margin, 60);
+                doc.text('CUIT: 00-00000000-0', margin, 66);
 
-                const body = cart.map(item => [item.isbn, item.title, item.author, `$${item.price.toFixed(2)}`, `$${item.price.toFixed(2)}`]);
+                // Tabla
+                const headers = ['ISBN', 'Título', 'Autor', 'Precio', 'Importe'];
+                const rows = cart.map(item => [
+                    item.isbn,
+                    item.title,
+                    item.author,
+                    `$${item.price.toFixed(2)}`,
+                    `$${item.price.toFixed(2)}`
+                ]);
+
                 doc.autoTable({
-                    startY: 80,
-                    head: [['ISBN','Descripción','Autor','Precio','Importe']],
-                    body: body,
+                    startY: 75,
+                    margin: { left: margin, right: margin },
+                    head: [headers],
+                    body: rows,
                     theme: 'grid',
-                    headStyles: { fillColor: [37,99,235], textColor: 255 },
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    headStyles: { fillColor: [37,99,235], textColor: 255, fontStyle: 'bold', fontSize: 9 },
                     columnStyles: {
-                        0: { cellWidth: 35 },
-                        1: { cellWidth: 50 },
-                        2: { cellWidth: 35 },
-                        3: { cellWidth: 25, halign:'right' },
-                        4: { cellWidth: 25, halign:'right' }
+                        0: { cellWidth: 32 },
+                        1: { cellWidth: 45 },
+                        2: { cellWidth: 40 },
+                        3: { cellWidth: 25, halign: 'right' },
+                        4: { cellWidth: 25, halign: 'right' }
+                    },
+                    tableWidth: 'auto',
+                    didParseCell: (data) => {
+                        // Ajustar ancho automáticamente dentro de lo posible
                     }
                 });
 
                 const finalY = doc.lastAutoTable.finalY + 10;
-                doc.line(120, finalY, 190, finalY);
-                doc.text('Subtotal:', 120, finalY+8);
-                doc.text(`$${subtotal.toFixed(2)}`, 190, finalY+8, { align:'right' });
-                doc.text(`IVA (21%):`, 120, finalY+16);
-                doc.text(`$${tax.toFixed(2)}`, 190, finalY+16, { align:'right' });
+
+                // Totales
+                doc.setFontSize(10);
+                doc.text('Subtotal:', pageWidth - margin - 60, finalY);
+                doc.text(`$${subtotal.toFixed(2)}`, pageWidth - margin, finalY, { align: 'right' });
+                doc.text(`IVA (21%):`, pageWidth - margin - 60, finalY + 7);
+                doc.text(`$${tax.toFixed(2)}`, pageWidth - margin, finalY + 7, { align: 'right' });
                 doc.setFontSize(12);
-                doc.setFont('helvetica','bold');
-                doc.text('TOTAL:', 120, finalY+26);
+                doc.setFont('helvetica', 'bold');
+                doc.text('TOTAL:', pageWidth - margin - 60, finalY + 17);
+                // Rectángulo de fondo
                 doc.setFillColor(37,99,235);
-                doc.rect(150, finalY+19, 40, 10, 'F');
+                doc.rect(pageWidth - margin - 40, finalY + 10, 40, 10, 'F');
                 doc.setTextColor(255,255,255);
-                doc.text(`$${total.toFixed(2)}`, 190, finalY+26, { align:'right' });
+                doc.text(`$${total.toFixed(2)}`, pageWidth - margin, finalY + 17, { align: 'right' });
+
+                // Pie
+                doc.setTextColor(120);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'italic');
+                const pageHeight = doc.internal.pageSize.getHeight();
+                doc.text('Gracias por su compra - Librería El Sabio', pageWidth / 2, pageHeight - 15, { align: 'center' });
 
                 doc.save(`factura_${invoiceNumber}.pdf`);
                 showNotification('📄 Factura generada. Limpiando carrito...', 'success');
