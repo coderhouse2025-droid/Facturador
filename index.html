@@ -1,655 +1,164 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Librería "El Sabio" - Facturación</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- html5-qrcode -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <!-- jsPDF + AutoTable -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.1/jspdf.plugin.autotable.min.js"></script>
-    <style>
-        body { background-color: #f9fafb; }
-        #reader video { border-radius: 0.5rem; max-height: 300px; width: 100%; object-fit: cover; }
-        .notification { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; font-weight: 500; animation: slideIn 0.3s ease-out; }
-        .notification.success { background-color: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
-        .notification.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-        .notification.warning { background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-        @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        #toggleScanner.active { background-color: #dc2626; }
-        #toggleScanner.active:hover { background-color: #b91c1c; }
-        .security-warning { background-color: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 1rem; }
-        .history-item { border-bottom: 1px solid #e5e7eb; padding: 0.5rem 0; }
-        .history-item:last-child { border-bottom: none; }
-        @media (max-width: 640px) {
-            #cartTable th, #cartTable td { padding: 0.5rem 0.25rem; font-size: 0.75rem; }
-        }
-    </style>
-</head>
-<body class="min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <header class="text-center mb-8">
-            <div class="flex items-center justify-center mb-4">
-                <i class="fas fa-book-open text-4xl text-blue-600 mr-3"></i>
-                <h1 class="text-3xl font-bold text-gray-800">Librería "El Sabio"</h1>
-            </div>
-            <p class="text-gray-600">Sistema de Facturación con Escáner de Código de Barras</p>
-            <div id="securityNotice" class="security-warning hidden mt-4">
-                <i class="fas fa-exclamation-triangle mr-2"></i>
-                <span id="securityMsg"></span>
-            </div>
-        </header>
+function generateInvoice() {
+    if (cart.length === 0) {
+        showNotification('⚠️ Carrito vacío.', 'warning');
+        return;
+    }
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 15;
+        const today = new Date();
+        const invoiceNumber = 'FAC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const invoiceDate = today.toLocaleDateString('es-AR');
+        const invoiceTime = today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        const dueDate = new Date(today);
+        dueDate.setDate(dueDate.getDate() + 30);
+        const dueDateStr = dueDate.toLocaleDateString('es-AR');
 
-        <main class="bg-white rounded-lg shadow-lg p-6">
-            <!-- Scanner Section -->
-            <section class="mb-8">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-                    <h2 class="text-xl font-semibold text-gray-700"><i class="fas fa-barcode mr-2"></i>Escáner de Códigos</h2>
-                    <button id="toggleScanner" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200 w-full sm:w-auto">
-                        <i class="fas fa-camera mr-2"></i>Activar Escáner
-                    </button>
-                </div>
-                <div id="reader" class="hidden border-2 border-dashed border-gray-300 rounded-lg p-4 mb-4"></div>
-                <div class="flex gap-2 mb-4">
-                    <input type="text" id="isbnInput" placeholder="Ingresa ISBN manualmente..." 
-                           class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <button id="searchManual" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition duration-200">
-                        <i class="fas fa-search"></i> Buscar
-                    </button>
-                </div>
-                <!-- Importar CSV -->
-                <div class="mb-4">
-                    <label for="csvFileInput" class="inline-flex items-center bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition duration-200">
-                        <i class="fas fa-upload mr-2"></i> Importar CSV (Inventario)
-                    </label>
-                    <input type="file" id="csvFileInput" accept=".csv" class="hidden">
-                    <p class="text-xs text-gray-500 mt-1">Carga un archivo CSV con los libros (columnas: Código, Nombre, Autor, Precio)</p>
-                </div>
-                <div id="notification" class="hidden transition-all duration-300"></div>
-            </section>
+        const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const tax = subtotal * (TAX_RATE / 100);
+        const total = subtotal + tax;
 
-            <!-- Carrito Section -->
-            <section>
-                <h2 class="text-xl font-semibold text-gray-700 mb-4"><i class="fas fa-shopping-cart mr-2"></i>Venta Actual</h2>
-                <div id="emptyCart" class="text-center py-8 text-gray-500">
-                    <i class="fas fa-shopping-cart text-4xl mb-3"></i>
-                    <p>No hay productos en la venta actual</p>
-                </div>
-                <div class="overflow-x-auto">
-                    <table id="cartTable" class="w-full mb-4 hidden">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">ISBN</th>
-                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Título</th>
-                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Autor</th>
-                                <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Precio</th>
-                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cartBody"></tbody>
-                    </table>
-                </div>
-                <div id="totalsSection" class="hidden border-t pt-4">
-                    <div class="flex justify-between mb-2"><span>Subtotal:</span><span id="subtotal" class="font-semibold">$0.00</span></div>
-                    <div class="flex justify-between mb-2"><span>IVA (21%):</span><span id="tax" class="font-semibold">$0.00</span></div>
-                    <div class="flex justify-between text-lg font-bold pt-2 border-t"><span>Total:</span><span id="total">$0.00</span></div>
-                    <button id="generateInvoice" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg mt-6 transition duration-200">
-                        <i class="fas fa-file-pdf mr-2"></i>Finalizar Venta y Generar Factura
-                    </button>
-                </div>
-            </section>
+        // --- Encabezado ---
+        doc.setFillColor(37, 99, 235);
+        doc.circle(20, 20, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(12);
+        doc.text('📚', 16, 24);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Librería El Sabio', 40, 20);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('NIT: 12.345.678-9', 40, 26);
+        doc.text('Calle del Conocimiento 123, Buenos Aires', 40, 31);
+        doc.text('+54 11 4567-8901', 40, 36);
+        doc.text('info@libreriaelsabio.com', 40, 41);
 
-            <!-- Historial de Movimientos -->
-            <section class="mt-8">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold text-gray-700"><i class="fas fa-history mr-2"></i>Historial de Facturas</h2>
-                    <button id="exportHistory" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition duration-200">
-                        <i class="fas fa-file-pdf mr-2"></i> Exportar Movimientos (PDF)
-                    </button>
-                </div>
-                <div id="historyContainer" class="text-sm text-gray-600">
-                    <p id="noHistory" class="text-center py-4">No hay facturas registradas aún.</p>
-                </div>
-            </section>
-        </main>
-        <footer class="text-center mt-6 text-gray-600 text-sm">© 2024 Librería "El Sabio" - Todos los derechos reservados</footer>
-    </div>
+        // Datos factura
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('FACTURA', pageWidth - margin, 20, { align: 'right' });
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`No. ${invoiceNumber}`, pageWidth - margin, 26, { align: 'right' });
+        doc.text(`Fecha: ${invoiceDate}`, pageWidth - margin, 31, { align: 'right' });
+        doc.text(`Hora: ${invoiceTime}`, pageWidth - margin, 36, { align: 'right' });
+        doc.text(`Vencimiento: ${dueDateStr}`, pageWidth - margin, 41, { align: 'right' });
 
-    <script>
-        // ========== BASE DE DATOS Y CONFIGURACIÓN ==========
-        const mockDatabase = {
-            books: [
-                { isbn: "9788437604947", title: "Cien años de soledad", author: "Gabriel García Márquez", price: 15.99, stock: 5 },
-                { isbn: "9788408045391", title: "El Alquimista", author: "Paulo Coelho", price: 12.50, stock: 3 },
-                { isbn: "9789878220062", title: "Hábitos Atómicas", author: "James Clear", price: 18.69, stock: 1 },
-                { isbn: "9789876053310", title: "Oratoria Dinámica DMG", author: "Daniel Mongelli", price: 9.99, stock: 1 },
-                { isbn: "9789501531916", title: "Las Causalidades No Existen", author: "Borrar Vilaseca", price: 20.05, stock: 1 },
-                { isbn: "9789504923817", title: "Confianza Total", author: "Verónica De Andres", price: 18.60, stock: 1 },
-                { isbn: "9789877479904", title: "Inteligencia Asertiva", author: "Javiera De La Plaza", price: 8.99, stock: 1 },
-                { isbn: "9789872659929", title: "La Paradoja", author: "James C. Hunter", price: 7.99, stock: 1 }
-            ]
-        };
+        doc.setDrawColor(200);
+        doc.line(margin, 48, pageWidth - margin, 48);
 
-        let cart = [];
-        let html5QrCode;
-        let isScannerActive = false;
-        const TAX_RATE = 21;
-        let invoiceHistory = []; // Array de facturas generadas
+        // Cliente
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DATOS DEL CLIENTE', margin, 56);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Cliente: Consumidor Final', margin, 62);
+        doc.text('NIT / CC: 00-00000000-0', margin, 67);
+        doc.text('Dirección: -', margin, 72);
+        doc.text('Email: -', margin, 77);
+        doc.text('Teléfono: -', margin, 82);
 
-        // ========== INICIALIZACIÓN ==========
-        document.addEventListener('DOMContentLoaded', () => {
-            // Verificar contexto seguro para cámara
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                document.getElementById('securityNotice').classList.remove('hidden');
-                document.getElementById('securityMsg').textContent = 
-                    '⚠️ La cámara solo funciona en conexión segura (https:// o localhost). Para usar el escáner, abrí esta página desde GitHub Pages o un servidor local. La búsqueda manual y las demás funciones están disponibles.';
+        // Tabla
+        const headers = ['ÍTEM', 'DESCRIPCIÓN', 'CANT.', 'U. MEDIDA', 'PRECIO UNIT.', 'TOTAL'];
+        const rows = cart.map((item, idx) => [
+            (idx + 1).toString(),
+            `${item.title} - ${item.author}`,
+            item.quantity.toString(),
+            'Und',
+            `$ ${item.price.toFixed(2)}`,
+            `$ ${(item.price * item.quantity).toFixed(2)}`
+        ]);
+
+        doc.autoTable({
+            startY: 90,
+            margin: { left: margin, right: margin },
+            head: [headers],
+            body: rows,
+            theme: 'grid',
+            styles: { fontSize: 7, cellPadding: 2 },
+            headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+            columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 50 },
+                2: { cellWidth: 12, halign: 'center' },
+                3: { cellWidth: 18, halign: 'center' },
+                4: { cellWidth: 26, halign: 'right' },
+                5: { cellWidth: 26, halign: 'right' }
             }
-
-            // Eventos
-            document.getElementById('toggleScanner').addEventListener('click', toggleScanner);
-            document.getElementById('searchManual').addEventListener('click', searchManualISBN);
-            document.getElementById('generateInvoice').addEventListener('click', generateInvoice);
-            document.getElementById('exportHistory').addEventListener('click', exportHistoryPDF);
-            document.getElementById('isbnInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') searchManualISBN();
-            });
-            document.getElementById('csvFileInput').addEventListener('change', handleFileUpload);
-
-            html5QrCode = new Html5Qrcode("reader");
-            loadCartFromLocalStorage();
-            loadInvoiceHistory();
-            updateCart();
-            updateHistoryUI();
-            updateTotalsVisibility();
         });
 
-        // ========== ESCÁNER ==========
-        function toggleScanner() {
-            const scannerBtn = document.getElementById('toggleScanner');
-            const readerElement = document.getElementById('reader');
-            if (isScannerActive) {
-                stopScanner();
-                scannerBtn.innerHTML = '<i class="fas fa-camera mr-2"></i>Activar Escáner';
-                scannerBtn.classList.remove('active');
-                readerElement.classList.add('hidden');
-            } else {
-                if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                    showNotification('🔒 La cámara requiere un servidor local o HTTPS.', 'warning');
-                    return;
-                }
-                startScanner();
-                scannerBtn.innerHTML = '<i class="fas fa-stop mr-2"></i>Detener Escáner';
-                scannerBtn.classList.add('active');
-                readerElement.classList.remove('hidden');
-            }
-        }
+        const finalY = doc.lastAutoTable.finalY + 8;
 
-        async function startScanner() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                stream.getTracks().forEach(track => track.stop());
-                const config = {
-                    fps: 10,
-                    qrbox: { width: 250, height: 150 },
-                    aspectRatio: 1.777,
-                    formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8 ]
-                };
-                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanError);
-                isScannerActive = true;
-                showNotification('📷 Escáner activo. Apuntá al código de barras.', 'success');
-            } catch (error) {
-                console.error(error);
-                if (error.name === 'NotAllowedError') {
-                    showNotification('❌ Permiso de cámara denegado. Habilita la cámara en la configuración del sitio.', 'error');
-                } else {
-                    showNotification('❌ No se pudo acceder a la cámara.', 'error');
-                }
-                document.getElementById('toggleScanner').click();
-            }
-        }
+        // Observaciones
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'italic');
+        doc.text('Gracias por su preferencia.', margin, finalY);
+        doc.text('Todos los libros cuentan con garantía de satisfacción.', margin, finalY + 5);
+        doc.text('Para cambios o devoluciones, presente esta factura.', margin, finalY + 10);
 
-        async function stopScanner() {
-            try {
-                if (html5QrCode && isScannerActive) {
-                    await html5QrCode.stop();
-                    isScannerActive = false;
-                }
-            } catch (error) { console.error('Error al detener escáner:', error); }
-        }
+        // Totales
+        const totalsX = pageWidth - margin - 60;
+        doc.text('SUBTOTAL', totalsX, finalY + 20);
+        doc.text(`$ ${subtotal.toFixed(2)}`, pageWidth - margin, finalY + 20, { align: 'right' });
+        doc.text('DESCUENTO', totalsX, finalY + 27);
+        doc.text('$ 0.00', pageWidth - margin, finalY + 27, { align: 'right' });
+        doc.text(`IVA (${TAX_RATE}%)`, totalsX, finalY + 34);
+        doc.text(`$ ${tax.toFixed(2)}`, pageWidth - margin, finalY + 34, { align: 'right' });
+        doc.line(totalsX, finalY + 37, pageWidth - margin, finalY + 37);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text('TOTAL A PAGAR', totalsX, finalY + 43);
+        doc.text(`$ ${total.toFixed(2)}`, pageWidth - margin, finalY + 43, { align: 'right' });
 
-        function onScanSuccess(decodedText) {
-            stopScanner();
-            processISBN(decodedText.trim());
-            document.getElementById('toggleScanner').click();
-        }
+        // Métodos de pago
+        doc.setFontSize(9);
+        doc.text('MÉTODOS DE PAGO', margin, finalY + 55);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('• Transferencia: Banco Nación, Cuenta Corriente No. 123456789', margin, finalY + 62);
+        doc.text('• Tarjeta: Débito y crédito (Visa, Mastercard)', margin, finalY + 68);
+        doc.text('• Efectivo: Pago en nuestro local', margin, finalY + 74);
 
-        function onScanError(error) { /* ignorar */ }
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(100);
+        doc.text('¡Gracias por su compra!', pageWidth / 2, finalY + 85, { align: 'center' });
 
-        // ========== BÚSQUEDA ==========
-        function searchManualISBN() {
-            const isbn = document.getElementById('isbnInput').value.trim();
-            if (!isbn) { showNotification('⚠️ Escribí un ISBN.', 'warning'); return; }
-            processISBN(isbn);
-            document.getElementById('isbnInput').value = '';
-        }
+        // Descargar la factura primero
+        doc.save(`factura_${invoiceNumber}.pdf`);
 
-        function processISBN(rawIsbn) {
-            const cleanISBN = rawIsbn.replace(/[-\s]/g, '');
-            console.log('Buscando:', cleanISBN);
-            const book = mockDatabase.books.find(b => b.isbn === cleanISBN);
-            if (book) {
-                addToCart(book);
-                showNotification(`✅ "${book.title}" añadido al carrito.`, 'success');
-            } else {
-                showNotification('❌ Producto no encontrado.', 'error');
-            }
-        }
-
-        // ========== CARRITO ==========
-        function addToCart(book) {
-            if (cart.find(item => item.isbn === book.isbn)) {
-                showNotification('⚠️ El libro ya está en el carrito.', 'warning');
-                return;
-            }
-            cart.push({ ...book, quantity: 1 });
-            updateCart();
-            saveCartToLocalStorage();
-        }
-
-        function removeFromCart(isbn) {
-            cart = cart.filter(item => item.isbn !== isbn);
-            updateCart();
-            saveCartToLocalStorage();
-            showNotification('🗑️ Libro eliminado.', 'success');
-        }
-
-        function updateCart() {
-            const cartBody = document.getElementById('cartBody');
-            const emptyCart = document.getElementById('emptyCart');
-            const cartTable = document.getElementById('cartTable');
-            cartBody.innerHTML = '';
-
-            if (cart.length === 0) {
-                emptyCart.classList.remove('hidden');
-                cartTable.classList.add('hidden');
-                updateTotalsVisibility();
-                return;
-            }
-
-            emptyCart.classList.add('hidden');
-            cartTable.classList.remove('hidden');
-
-            cart.forEach(item => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-4 py-3 text-sm">${item.isbn}</td>
-                    <td class="px-4 py-3 text-sm font-medium">${item.title}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600">${item.author}</td>
-                    <td class="px-4 py-3 text-sm text-right font-semibold">$${item.price.toFixed(2)}</td>
-                    <td class="px-4 py-3 text-center">
-                        <button onclick="removeFromCart('${item.isbn}')" class="text-red-600 hover:text-red-800">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                `;
-                cartBody.appendChild(row);
-            });
-
-            updateTotals();
-            updateTotalsVisibility();
-        }
-
-        function updateTotals() {
-            const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            const tax = subtotal * (TAX_RATE / 100);
-            const total = subtotal + tax;
-            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
-            document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
-            document.getElementById('total').textContent = `$${total.toFixed(2)}`;
-        }
-
-        function updateTotalsVisibility() {
-            const totalsSection = document.getElementById('totalsSection');
-            totalsSection.classList.toggle('hidden', cart.length === 0);
-        }
-
-        // ========== FACTURA EN FORMATO NUEVO ==========
-        function generateInvoice() {
-            if (cart.length === 0) { showNotification('⚠️ Carrito vacío.', 'warning'); return; }
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const margin = 15;
-                const today = new Date();
-                const invoiceNumber = 'FAC-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-                const invoiceDate = today.toLocaleDateString('es-AR');
-                const invoiceTime = today.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-                const dueDate = new Date(today);
-                dueDate.setDate(dueDate.getDate() + 30);
-                const dueDateStr = dueDate.toLocaleDateString('es-AR');
-
-                const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                const tax = subtotal * (TAX_RATE / 100);
-                const total = subtotal + tax;
-
-                // Encabezado
-                doc.setFillColor(37, 99, 235);
-                doc.circle(20, 20, 8, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(12);
-                doc.text('📚', 16, 24);
-                doc.setTextColor(0, 0, 0);
-                doc.setFontSize(18);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Librería El Sabio', 40, 20);
-                doc.setFontSize(8);
-                doc.setFont('helvetica', 'normal');
-                doc.text('NIT: 12.345.678-9', 40, 26);
-                doc.text('Calle del Conocimiento 123, Buenos Aires', 40, 31);
-                doc.text('+54 11 4567-8901', 40, 36);
-                doc.text('info@libreriaelsabio.com', 40, 41);
-
-                // Datos de factura
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'bold');
-                doc.text('FACTURA', pageWidth - margin, 20, { align: 'right' });
-                doc.setFontSize(8);
-                doc.setFont('helvetica', 'normal');
-                doc.text(`No. ${invoiceNumber}`, pageWidth - margin, 26, { align: 'right' });
-                doc.text(`Fecha: ${invoiceDate}`, pageWidth - margin, 31, { align: 'right' });
-                doc.text(`Hora: ${invoiceTime}`, pageWidth - margin, 36, { align: 'right' });
-                doc.text(`Vencimiento: ${dueDateStr}`, pageWidth - margin, 41, { align: 'right' });
-
-                doc.setDrawColor(200);
-                doc.line(margin, 48, pageWidth - margin, 48);
-
-                // Datos del cliente
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.text('DATOS DEL CLIENTE', margin, 56);
-                doc.setFontSize(8);
-                doc.setFont('helvetica', 'normal');
-                doc.text('Cliente: Consumidor Final', margin, 62);
-                doc.text('NIT / CC: 00-00000000-0', margin, 67);
-                doc.text('Dirección: -', margin, 72);
-                doc.text('Email: -', margin, 77);
-                doc.text('Teléfono: -', margin, 82);
-
-                // Tabla de ítems
-                const headers = ['ÍTEM', 'DESCRIPCIÓN', 'CANT.', 'U. MEDIDA', 'PRECIO UNIT.', 'TOTAL'];
-                const rows = cart.map((item, idx) => [
-                    (idx + 1).toString(),
-                    `${item.title} - ${item.author}`,
-                    item.quantity.toString(),
-                    'Und',
-                    `$ ${item.price.toFixed(2)}`,
-                    `$ ${(item.price * item.quantity).toFixed(2)}`
-                ]);
-
-                doc.autoTable({
-                    startY: 90,
-                    margin: { left: margin, right: margin },
-                    head: [headers],
-                    body: rows,
-                    theme: 'grid',
-                    styles: { fontSize: 7, cellPadding: 2 },
-                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold', fontSize: 7 },
-                    columnStyles: {
-                        0: { cellWidth: 10, halign: 'center' },
-                        1: { cellWidth: 50 },
-                        2: { cellWidth: 12, halign: 'center' },
-                        3: { cellWidth: 18, halign: 'center' },
-                        4: { cellWidth: 26, halign: 'right' },
-                        5: { cellWidth: 26, halign: 'right' }
-                    }
-                });
-
-                const finalY = doc.lastAutoTable.finalY + 8;
-
-                // Observaciones
-                doc.setFontSize(8);
-                doc.setFont('helvetica', 'italic');
-                doc.text('Gracias por su preferencia.', margin, finalY);
-                doc.text('Todos los libros cuentan con garantía de satisfacción.', margin, finalY + 5);
-                doc.text('Para cambios o devoluciones, presente esta factura.', margin, finalY + 10);
-
-                // Totales
-                const totalsX = pageWidth - margin - 60;
-                doc.setFont('helvetica', 'normal');
-                doc.text('SUBTOTAL', totalsX, finalY + 20);
-                doc.text(`$ ${subtotal.toFixed(2)}`, pageWidth - margin, finalY + 20, { align: 'right' });
-                doc.text('DESCUENTO', totalsX, finalY + 27);
-                doc.text('$ 0.00', pageWidth - margin, finalY + 27, { align: 'right' });
-                doc.text(`IVA (${TAX_RATE}%)`, totalsX, finalY + 34);
-                doc.text(`$ ${tax.toFixed(2)}`, pageWidth - margin, finalY + 34, { align: 'right' });
-                doc.line(totalsX, finalY + 37, pageWidth - margin, finalY + 37);
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(10);
-                doc.text('TOTAL A PAGAR', totalsX, finalY + 43);
-                doc.text(`$ ${total.toFixed(2)}`, pageWidth - margin, finalY + 43, { align: 'right' });
-
-                // Métodos de pago
-                doc.setFontSize(9);
-                doc.text('MÉTODOS DE PAGO', margin, finalY + 55);
-                doc.setFontSize(8);
-                doc.setFont('helvetica', 'normal');
-                doc.text('• Transferencia: Banco Nación, Cuenta Corriente No. 123456789', margin, finalY + 62);
-                doc.text('• Tarjeta: Débito y crédito (Visa, Mastercard)', margin, finalY + 68);
-                doc.text('• Efectivo: Pago en nuestro local', margin, finalY + 74);
-
-                doc.setFont('helvetica', 'italic');
-                doc.setTextColor(100);
-                doc.text('¡Gracias por su compra!', pageWidth / 2, finalY + 85, { align: 'center' });
-
-                // Guardar la factura en el historial
-                const invoiceData = {
-                    number: invoiceNumber,
-                    date: invoiceDate + ' ' + invoiceTime,
-                    items: cart.map(item => ({ ...item })),
-                    subtotal: subtotal,
-                    tax: tax,
-                    total: total
-                };
-                invoiceHistory.push(invoiceData);
-                saveInvoiceHistory();
-
-                doc.save(`factura_${invoiceNumber}.pdf`);
-                showNotification('📄 Factura generada y guardada en el historial.', 'success');
-
-                // Limpiar carrito después de 2 segundos
-                setTimeout(() => {
-                    cart = [];
-                    updateCart();
-                    saveCartToLocalStorage();
-                }, 2000);
-
-                updateHistoryUI();
-            } catch (e) {
-                console.error(e);
-                showNotification('❌ Error al generar la factura.', 'error');
-            }
-        }
-
-        // ========== HISTORIAL DE FACTURAS ==========
-        function loadInvoiceHistory() {
-            try {
-                const data = localStorage.getItem('invoiceHistory');
-                invoiceHistory = data ? JSON.parse(data) : [];
-            } catch (e) {
-                invoiceHistory = [];
-            }
-            updateHistoryUI();
-        }
-
-        function saveInvoiceHistory() {
-            localStorage.setItem('invoiceHistory', JSON.stringify(invoiceHistory));
-        }
-
-        function updateHistoryUI() {
-            const container = document.getElementById('historyContainer');
-            const noHistory = document.getElementById('noHistory');
-            container.innerHTML = '';
-
-            if (invoiceHistory.length === 0) {
-                noHistory.classList.remove('hidden');
-                return;
-            }
-            noHistory.classList.add('hidden');
-
-            invoiceHistory.slice().reverse().forEach(inv => {
-                const div = document.createElement('div');
-                div.className = 'history-item';
-                div.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <span class="font-semibold">${inv.number}</span>
-                        <span class="text-xs text-gray-500">${inv.date}</span>
-                    </div>
-                    <div class="flex justify-between text-xs mt-1">
-                        <span>${inv.items.length} producto(s)</span>
-                        <span class="font-bold">Total: $${inv.total.toFixed(2)}</span>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function exportHistoryPDF() {
-            if (invoiceHistory.length === 0) {
-                showNotification('⚠️ No hay facturas en el historial.', 'warning');
-                return;
-            }
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const margin = 10;
-                doc.setFontSize(16);
-                doc.text('Historial de Facturaciones', pageWidth / 2, 15, { align: 'center' });
-                doc.setFontSize(10);
-                doc.text(`Generado: ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 22, { align: 'center' });
-
-                const headers = ['Nº Factura', 'Fecha', 'Productos', 'Subtotal', 'IVA', 'Total'];
-                const rows = invoiceHistory.map(inv => [
-                    inv.number,
-                    inv.date,
-                    inv.items.length.toString(),
-                    `$ ${inv.subtotal.toFixed(2)}`,
-                    `$ ${inv.tax.toFixed(2)}`,
-                    `$ ${inv.total.toFixed(2)}`
-                ]);
-
-                doc.autoTable({
-                    startY: 30,
-                    margin: { left: margin, right: margin },
-                    head: [headers],
-                    body: rows,
-                    theme: 'striped',
-                    styles: { fontSize: 8 },
-                    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
-                    columnStyles: {
-                        0: { cellWidth: 30 },
-                        1: { cellWidth: 45 },
-                        2: { cellWidth: 25, halign: 'center' },
-                        3: { cellWidth: 35, halign: 'right' },
-                        4: { cellWidth: 35, halign: 'right' },
-                        5: { cellWidth: 35, halign: 'right' }
-                    }
-                });
-
-                // Total general
-                const finalY = doc.lastAutoTable.finalY + 10;
-                const totalGlobal = invoiceHistory.reduce((sum, inv) => sum + inv.total, 0);
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'bold');
-                doc.text(`Total facturado: $ ${totalGlobal.toFixed(2)}`, pageWidth - margin, finalY, { align: 'right' });
-
-                doc.save('historial_facturas.pdf');
-                showNotification('📊 Historial exportado en PDF.', 'success');
-            } catch (e) {
-                console.error(e);
-                showNotification('❌ Error al exportar historial.', 'error');
-            }
-        }
-
-        // ========== IMPORTAR CSV ==========
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const csv = e.target.result;
-                const lines = csv.split('\n').filter(line => line.trim() !== '');
-                if (lines.length < 2) {
-                    showNotification('❌ El archivo CSV está vacío o no tiene datos.', 'error');
-                    return;
-                }
-                // Asumimos que la primera línea es encabezado: ID,"Código","Nombre","Marca/Autor","Precio",...
-                const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-                const isbnIdx = headers.findIndex(h => h === 'Código' || h === 'codigo');
-                const titleIdx = headers.findIndex(h => h === 'Nombre' || h === 'nombre');
-                const authorIdx = headers.findIndex(h => h === 'Marca/Autor' || h === 'autor');
-                const priceIdx = headers.findIndex(h => h === 'Precio' || h === 'precio');
-
-                if (isbnIdx === -1 || titleIdx === -1 || authorIdx === -1 || priceIdx === -1) {
-                    showNotification('❌ El CSV debe tener columnas: Código, Nombre, Marca/Autor, Precio.', 'error');
-                    return;
-                }
-
-                const books = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const columns = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
-                    if (columns.length <= Math.max(isbnIdx, titleIdx, authorIdx, priceIdx)) continue;
-                    const isbn = columns[isbnIdx];
-                    const title = columns[titleIdx];
-                    const author = columns[authorIdx];
-                    const price = parseFloat(columns[priceIdx]);
-                    if (isbn && title && !isNaN(price)) {
-                        books.push({ isbn, title, author, price, stock: 1 });
-                    }
-                }
-
-                if (books.length > 0) {
-                    mockDatabase.books = books;
-                    showNotification(`✅ ${books.length} libros cargados desde el CSV.`, 'success');
-                } else {
-                    showNotification('❌ No se encontraron libros válidos en el archivo.', 'error');
-                }
+        // Intentar guardar en el historial (no debe bloquear la factura)
+        try {
+            const invoiceData = {
+                number: invoiceNumber,
+                date: invoiceDate + ' ' + invoiceTime,
+                items: cart.map(item => ({ ...item })),
+                subtotal: subtotal,
+                tax: tax,
+                total: total
             };
-            reader.readAsText(file);
-            // Limpiar el input para permitir recargar el mismo archivo
-            event.target.value = '';
+            invoiceHistory.push(invoiceData);
+            saveInvoiceHistory();
+            updateHistoryUI();
+            showNotification('📄 Factura generada y guardada en el historial.', 'success');
+        } catch (histError) {
+            console.warn('No se pudo guardar el historial:', histError);
+            showNotification('📄 Factura generada, pero no se guardó en el historial (memoria llena).', 'warning');
         }
 
-        // ========== PERSISTENCIA DEL CARRITO ==========
-        function saveCartToLocalStorage() {
-            localStorage.setItem('libraryCart', JSON.stringify(cart));
-        }
-
-        function loadCartFromLocalStorage() {
-            try {
-                const data = localStorage.getItem('libraryCart');
-                cart = data ? JSON.parse(data) : [];
-            } catch (e) {
-                cart = [];
-            }
+        // Limpiar carrito
+        setTimeout(() => {
+            cart = [];
             updateCart();
-        }
+            saveCartToLocalStorage();
+        }, 2000);
 
-        // ========== NOTIFICACIONES ==========
-        function showNotification(msg, type) {
-            const notif = document.getElementById('notification');
-            notif.className = `notification ${type}`;
-            notif.textContent = msg;
-            notif.classList.remove('hidden');
-            setTimeout(() => notif.classList.add('hidden'), 3500);
-        }
-    </script>
-</body>
-</html>
+    } catch (e) {
+        console.error(e);
+        showNotification('❌ Error al generar la factura.', 'error');
+    }
+}
