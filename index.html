@@ -3,18 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Librería - Sistema de Facturación</title>
+    <title>Librería "El Sabio" - Facturación</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html5-qrcode -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- jsPDF + AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.1/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body { background-color: #f9fafb; }
+        #reader video { border-radius: 0.5rem; max-height: 300px; width: 100%; object-fit: cover; }
+        .notification { padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; font-weight: 500; animation: slideIn 0.3s ease-out; }
+        .notification.success { background-color: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .notification.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .notification.warning { background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+        @keyframes slideIn { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        #toggleScanner.active { background-color: #dc2626; }
+        #toggleScanner.active:hover { background-color: #b91c1c; }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="min-h-screen">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
-        
-        <!-- Header -->
         <header class="text-center mb-8">
             <div class="flex items-center justify-center mb-4">
                 <i class="fas fa-book-open text-4xl text-blue-600 mr-3"></i>
@@ -23,97 +35,320 @@
             <p class="text-gray-600">Sistema de Facturación con Escáner de Código de Barras</p>
         </header>
 
-        <!-- Main Content -->
         <main class="bg-white rounded-lg shadow-lg p-6">
-            
             <!-- Scanner Section -->
-            <section id="scannerSection" class="mb-8">
+            <section class="mb-8">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-xl font-semibold text-gray-700">
-                        <i class="fas fa-barcode mr-2"></i>Escáner de Códigos
-                    </h2>
+                    <h2 class="text-xl font-semibold text-gray-700"><i class="fas fa-barcode mr-2"></i>Escáner de Códigos</h2>
                     <button id="toggleScanner" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200">
                         <i class="fas fa-camera mr-2"></i>Activar Escáner
                     </button>
                 </div>
-                
-                <!-- Scanner Container -->
                 <div id="reader" class="hidden border-2 border-dashed border-gray-300 rounded-lg p-4 mb-4"></div>
-                
-                <!-- Manual ISBN Input -->
                 <div class="flex gap-2 mb-4">
                     <input type="text" id="isbnInput" placeholder="Ingresa ISBN manualmente..." 
                            class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <button id="searchManual" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition duration-200">
-                        <i class="fas fa-search"></i>
+                        <i class="fas fa-search"></i> Buscar
                     </button>
                 </div>
-                
-                <!-- Notification Area -->
                 <div id="notification" class="hidden transition-all duration-300"></div>
             </section>
 
             <!-- Cart Section -->
-            <section id="cartSection">
-                <h2 class="text-xl font-semibold text-gray-700 mb-4">
-                    <i class="fas fa-shopping-cart mr-2"></i>Venta Actual
-                </h2>
-                
-                <!-- Cart Table -->
-                <div class="overflow-x-auto">
-                    <table id="cartTable" class="w-full mb-4">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">ISBN</th>
-                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Título</th>
-                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Autor</th>
-                                <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Precio</th>
-                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cartBody">
-                            <!-- Cart items will be inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Empty Cart Message -->
+            <section>
+                <h2 class="text-xl font-semibold text-gray-700 mb-4"><i class="fas fa-shopping-cart mr-2"></i>Venta Actual</h2>
                 <div id="emptyCart" class="text-center py-8 text-gray-500">
                     <i class="fas fa-shopping-cart text-4xl mb-3"></i>
                     <p>No hay productos en la venta actual</p>
                 </div>
-                
-                <!-- Totals Section -->
-                <div id="totalsSection" class="hidden">
-                    <div class="border-t pt-4">
-                        <div class="flex justify-between mb-2">
-                            <span class="text-gray-600">Subtotal:</span>
-                            <span id="subtotal" class="font-semibold">$0.00</span>
-                        </div>
-                        <div class="flex justify-between mb-2">
-                            <span class="text-gray-600">IVA (21%):</span>
-                            <span id="tax" class="font-semibold">$0.00</span>
-                        </div>
-                        <div class="flex justify-between text-lg font-bold pt-2 border-t">
-                            <span>Total:</span>
-                            <span id="total">$0.00</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Generate Invoice Button -->
+                <table id="cartTable" class="w-full mb-4 hidden">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">ISBN</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Título</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Autor</th>
+                            <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Precio</th>
+                            <th class="px-4 py-3 text-center text-sm font-semibold text-gray-700">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cartBody"></tbody>
+                </table>
+                <div id="totalsSection" class="hidden border-t pt-4">
+                    <div class="flex justify-between mb-2"><span>Subtotal:</span><span id="subtotal" class="font-semibold">$0.00</span></div>
+                    <div class="flex justify-between mb-2"><span>IVA (21%):</span><span id="tax" class="font-semibold">$0.00</span></div>
+                    <div class="flex justify-between text-lg font-bold pt-2 border-t"><span>Total:</span><span id="total">$0.00</span></div>
                     <button id="generateInvoice" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg mt-6 transition duration-200">
                         <i class="fas fa-file-pdf mr-2"></i>Finalizar Venta y Generar Factura
                     </button>
                 </div>
             </section>
         </main>
-        
-        <!-- Footer -->
-        <footer class="text-center mt-6 text-gray-600 text-sm">
-            <p>© 2024 Librería "El Sabio" - Todos los derechos reservados</p>
-        </footer>
+        <footer class="text-center mt-6 text-gray-600 text-sm">© 2024 Librería "El Sabio" - Todos los derechos reservados</footer>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        // ========== BASE DE DATOS ==========
+        const mockDatabase = {
+            books: [
+                { isbn: "9788437604947", title: "Cien años de soledad", author: "Gabriel García Márquez", price: 15.99, stock: 5 },
+                { isbn: "9788408045391", title: "El Alquimista", author: "Paulo Coelho", price: 12.50, stock: 3 },
+                { isbn: "9789878220062", title: "Hábitos Atómicas", author: "James Clear", price: 18.69, stock: 1 },
+                { isbn: "9789876053310", title: "Oratoria Dinámica DMG", author: "Daniel Mongelli", price: 9.99, stock: 1 },
+                { isbn: "9789501531916", title: "Las Causalidades No Existen", author: "Borrar Vilaseca", price: 20.05, stock: 1 },
+                { isbn: "9789504923817", title: "Confianza Total", author: "Verónica De Andres", price: 18.60, stock: 1 },
+                { isbn: "9789877479904", title: "Inteligencia Asertiva", author: "Javiera De La Plaza", price: 8.99, stock: 1 },
+                { isbn: "9789872659929", title: "La Paradoja", author: "James C. Hunter", price: 7.99, stock: 1 }
+            ]
+        };
+
+        let cart = [];
+        let html5QrCode;
+        let isScannerActive = false;
+        const TAX_RATE = 21;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Eventos
+            document.getElementById('toggleScanner').addEventListener('click', toggleScanner);
+            document.getElementById('searchManual').addEventListener('click', searchManualISBN);
+            document.getElementById('generateInvoice').addEventListener('click', generateInvoice);
+            document.getElementById('isbnInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') searchManualISBN();
+            });
+
+            html5QrCode = new Html5Qrcode("reader");
+            loadCartFromLocalStorage();
+            updateTotalsVisibility();
+        });
+
+        // ========== ESCÁNER ==========
+        function toggleScanner() {
+            const scannerBtn = document.getElementById('toggleScanner');
+            const readerElement = document.getElementById('reader');
+            if (isScannerActive) {
+                stopScanner();
+                scannerBtn.innerHTML = '<i class="fas fa-camera mr-2"></i>Activar Escáner';
+                scannerBtn.classList.remove('active');
+                readerElement.classList.add('hidden');
+            } else {
+                if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                    showNotification('⚠️ La cámara solo funciona en conexión segura (localhost o HTTPS). Usá Live Server.', 'warning');
+                    return;
+                }
+                startScanner();
+                scannerBtn.innerHTML = '<i class="fas fa-stop mr-2"></i>Detener Escáner';
+                scannerBtn.classList.add('active');
+                readerElement.classList.remove('hidden');
+            }
+        }
+
+        async function startScanner() {
+            try {
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 150 },
+                    aspectRatio: 1.777,
+                    formatsToSupport: [ Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8 ]
+                };
+                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanError);
+                isScannerActive = true;
+                showNotification('📷 Escáner activo. Apuntá al código de barras.', 'success');
+            } catch (error) {
+                console.error(error);
+                showNotification('❌ No se pudo acceder a la cámara. ¿Concediste permiso?', 'error');
+                document.getElementById('toggleScanner').click();
+            }
+        }
+
+        async function stopScanner() {
+            try {
+                if (html5QrCode && isScannerActive) {
+                    await html5QrCode.stop();
+                    isScannerActive = false;
+                }
+            } catch (error) { console.error('Error al detener escáner:', error); }
+        }
+
+        function onScanSuccess(decodedText) {
+            stopScanner();
+            processISBN(decodedText.trim());
+            document.getElementById('toggleScanner').click(); // volver a estado inicial
+        }
+
+        function onScanError(error) { /* no molestar al usuario */ }
+
+        // ========== BÚSQUEDA ==========
+        function searchManualISBN() {
+            const isbn = document.getElementById('isbnInput').value.trim();
+            if (!isbn) { showNotification('⚠️ Escribí un ISBN.', 'warning'); return; }
+            processISBN(isbn);
+            document.getElementById('isbnInput').value = '';
+        }
+
+        function processISBN(rawIsbn) {
+            const cleanISBN = rawIsbn.replace(/[-\s]/g, '');
+            console.log('Buscando:', cleanISBN);
+            const book = mockDatabase.books.find(b => b.isbn === cleanISBN);
+            if (book) {
+                addToCart(book);
+                showNotification(`✅ "${book.title}" añadido al carrito.`, 'success');
+            } else {
+                showNotification('❌ Producto no encontrado.', 'error');
+            }
+        }
+
+        // ========== CARRITO ==========
+        function addToCart(book) {
+            if (cart.find(item => item.isbn === book.isbn)) {
+                showNotification('⚠️ El libro ya está en el carrito.', 'warning');
+                return;
+            }
+            cart.push({ ...book, quantity: 1 });
+            updateCart();
+            saveCartToLocalStorage();
+        }
+
+        function removeFromCart(isbn) {
+            cart = cart.filter(item => item.isbn !== isbn);
+            updateCart();
+            saveCartToLocalStorage();
+            showNotification('🗑️ Libro eliminado.', 'success');
+        }
+
+        function updateCart() {
+            const cartBody = document.getElementById('cartBody');
+            const emptyCart = document.getElementById('emptyCart');
+            const cartTable = document.getElementById('cartTable');
+            cartBody.innerHTML = '';
+
+            if (cart.length === 0) {
+                emptyCart.classList.remove('hidden');
+                cartTable.classList.add('hidden');
+                updateTotalsVisibility();
+                return;
+            }
+
+            emptyCart.classList.add('hidden');
+            cartTable.classList.remove('hidden');
+
+            cart.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm">${item.isbn}</td>
+                    <td class="px-4 py-3 text-sm font-medium">${item.title}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${item.author}</td>
+                    <td class="px-4 py-3 text-sm text-right font-semibold">$${item.price.toFixed(2)}</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="removeFromCart('${item.isbn}')" class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                cartBody.appendChild(row);
+            });
+
+            updateTotals();
+            updateTotalsVisibility();
+        }
+
+        function updateTotals() {
+            const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+            const tax = subtotal * (TAX_RATE / 100);
+            const total = subtotal + tax;
+            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
+            document.getElementById('total').textContent = `$${total.toFixed(2)}`;
+        }
+
+        function updateTotalsVisibility() {
+            const totalsSection = document.getElementById('totalsSection');
+            totalsSection.classList.toggle('hidden', cart.length === 0);
+        }
+
+        // ========== FACTURA PDF ==========
+        function generateInvoice() {
+            if (cart.length === 0) { showNotification('⚠️ Carrito vacío.', 'warning'); return; }
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const subtotal = cart.reduce((s, i) => s + i.price, 0);
+                const tax = subtotal * (TAX_RATE/100);
+                const total = subtotal + tax;
+                const invoiceNumber = 'FAC-' + Math.floor(Math.random()*10000).toString().padStart(4,'0');
+                const invoiceDate = new Date().toLocaleDateString('es-AR');
+
+                doc.setFillColor(37,99,235);
+                doc.rect(0,0,210,40,'F');
+                doc.setTextColor(255,255,255);
+                doc.setFontSize(22);
+                doc.text('Librería El Sabio', 14, 25);
+                doc.setFontSize(8);
+                doc.text('Calle del Conocimiento 123, Buenos Aires', 14, 33);
+
+                doc.setTextColor(0,0,0);
+                doc.setFontSize(10);
+                doc.text('FACTURA', 170, 50, { align:'right' });
+                doc.text(`Nº ${invoiceNumber}`, 170, 57, { align:'right' });
+                doc.text(`Fecha: ${invoiceDate}`, 170, 64, { align:'right' });
+                doc.text('Cliente: Consumidor Final', 14, 62);
+
+                const body = cart.map(item => [item.isbn, item.title, item.author, `$${item.price.toFixed(2)}`, `$${item.price.toFixed(2)}`]);
+                doc.autoTable({
+                    startY: 80,
+                    head: [['ISBN','Descripción','Autor','Precio','Importe']],
+                    body: body,
+                    theme: 'grid',
+                    headStyles: { fillColor: [37,99,235], textColor: 255 },
+                    columnStyles: {
+                        0: { cellWidth: 35 },
+                        1: { cellWidth: 50 },
+                        2: { cellWidth: 35 },
+                        3: { cellWidth: 25, halign:'right' },
+                        4: { cellWidth: 25, halign:'right' }
+                    }
+                });
+
+                const finalY = doc.lastAutoTable.finalY + 10;
+                doc.line(120, finalY, 190, finalY);
+                doc.text('Subtotal:', 120, finalY+8);
+                doc.text(`$${subtotal.toFixed(2)}`, 190, finalY+8, { align:'right' });
+                doc.text(`IVA (21%):`, 120, finalY+16);
+                doc.text(`$${tax.toFixed(2)}`, 190, finalY+16, { align:'right' });
+                doc.setFontSize(12);
+                doc.setFont('helvetica','bold');
+                doc.text('TOTAL:', 120, finalY+26);
+                doc.setFillColor(37,99,235);
+                doc.rect(150, finalY+19, 40, 10, 'F');
+                doc.setTextColor(255,255,255);
+                doc.text(`$${total.toFixed(2)}`, 190, finalY+26, { align:'right' });
+
+                doc.save(`factura_${invoiceNumber}.pdf`);
+                showNotification('📄 Factura generada. Limpiando carrito...', 'success');
+                setTimeout(() => { cart = []; updateCart(); saveCartToLocalStorage(); }, 2000);
+            } catch (e) {
+                console.error(e);
+                showNotification('❌ Error al generar la factura.', 'error');
+            }
+        }
+
+        // ========== PERSISTENCIA ==========
+        function saveCartToLocalStorage() { localStorage.setItem('libraryCart', JSON.stringify(cart)); }
+        function loadCartFromLocalStorage() {
+            try {
+                const data = localStorage.getItem('libraryCart');
+                cart = data ? JSON.parse(data) : [];
+            } catch (e) { cart = []; }
+            updateCart();
+        }
+
+        // ========== NOTIFICACIONES ==========
+        function showNotification(msg, type) {
+            const notif = document.getElementById('notification');
+            notif.className = `notification ${type}`;
+            notif.textContent = msg;
+            notif.classList.remove('hidden');
+            setTimeout(() => notif.classList.add('hidden'), 3500);
+        }
+    </script>
 </body>
 </html>
