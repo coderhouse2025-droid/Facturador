@@ -60,7 +60,7 @@ Ideal para pequeños comercios que necesiten una solución rápida, portable y s
 Accedé directamente desde el navegador a través de GitHub Pages. No requiere instalación.
 
 ```
-https://<tu-usuario>.github.io/<nombre-del-repo>/
+https://coderhouse2025-droid.github.io/Facturador/
 ```
 
 ### Opción 2 — Local
