@@ -61,19 +61,7 @@ Accedé directamente desde el navegador a través de GitHub Pages. No requiere i
 
 ```
 https://coderhouse2025-droid.github.io/Facturador/
-```
 
-### Opción 2 — Local
-
-```bash
-# Clonar el repositorio
-git clone https://github.com/<tu-usuario>/<nombre-del-repo>.git
-
-# Abrir el archivo en un servidor local (necesario para la cámara)
-cd <nombre-del-repo>
-npx serve .
-# o con Python:
-python -m http.server 8080
 ```
 
 > ⚠️ **Nota:** El escáner de cámara requiere conexión **HTTPS** o **localhost**. Abrir el archivo directamente (`file://`) no activará la cámara, aunque el resto de las funciones sí funcionan.
