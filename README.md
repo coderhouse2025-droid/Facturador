@@ -113,16 +113,7 @@ El archivo se descarga con el nombre `factura_FAC-XXXX.pdf`.
 📦 libreria-el-sabio/
 ├── 📄 index.html        # Aplicación completa (SPA)
 └── 📄 README.md         # Documentación
-```
 
----
-
-## ⚠️ Limitaciones Conocidas
-
-- El inventario **no persiste entre sesiones** si fue cargado por CSV (se pierde al recargar la página).
-- El escáner de cámara **no funciona** en conexiones `http://` ni abriendo el archivo directamente.
-- El historial de facturas **está limitado a 20 entradas** para evitar errores de almacenamiento local.
-- No hay autenticación ni gestión de usuarios.
 
 ---
 
