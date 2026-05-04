@@ -133,7 +133,6 @@ El archivo se descarga con el nombre `factura_FAC-XXXX.pdf`.
 Este proyecto es de uso libre. Podés modificarlo y adaptarlo a tus necesidades.
 
 ---
-
-<p align="center">
-  📚 Desarrollado con ❤️ para <strong>Librería "El Sabio"</strong> — Buenos Aires
-</p>
+## 👤 Autor
+Juan Manuel Orellana
+---
