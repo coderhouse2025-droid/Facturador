@@ -8,6 +8,8 @@
 
 🔗 **Demo:** https://coderhouse2025-droid.github.io/Facturador/
 
+📱 **Relacionado:** https://coderhouse2025-droid.github.io/Tableros-Interactivos/Librer%C3%ADa/dashboard.html
+
 ---
 
 ## 📋 Índice
