@@ -1,4 +1,4 @@
-# 🧾 Librería "El Sabio" — Sistema de Facturación Web
+# 🧾 ¨Facturador" — Sistema de Facturación Web
 
 [![Demo en vivo](https://img.shields.io/badge/Demo-Live-brightgreen?style=for-the-badge)](https://coderhouse2025-droid.github.io/Facturador/)
 [![Sin backend](https://img.shields.io/badge/Backend-Ninguno-lightgrey?style=for-the-badge)](#)
