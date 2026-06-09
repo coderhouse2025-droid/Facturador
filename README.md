@@ -1,3 +1,5 @@
+<img width="1331" height="1181" alt="file_000000000828720e9120664288988018" src="https://github.com/user-attachments/assets/6c8132a2-f980-40ba-8cbb-d2ceec13d235" />
+
 # 🧾 ¨Facturador" — Sistema de Facturación Web
 
 [![Demo en vivo](https://img.shields.io/badge/Demo-Live-brightgreen?style=for-the-badge)](https://coderhouse2025-droid.github.io/Facturador/)
