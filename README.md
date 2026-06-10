@@ -345,7 +345,7 @@ Una app nativa tendría mejor acceso a la cámara y al hardware de escaneo. El t
 - 🔍 **Búsqueda manual** por ISBN como alternativa al escáner
 - 📦 **Importación de inventario** desde CSV con normalización automática
 - 🛒 **Carrito de venta** con cantidades editables y eliminación de items
-- 💰 **Cálculo automático de IVA** diferenciado (10,5% libros / 21% resto)
+- 💰 **Cálculo automático de IVA** diferenciado (10,5% libros técnicos/ 21% resto)
 - 🧾 **Generación de factura PDF** con logo, datos del negocio y tabla de items
 - 📊 **Historial de ventas** persistido en LocalStorage
 - 📥 **Export del historial** a CSV para backup o análisis externo
