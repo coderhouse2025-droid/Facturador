@@ -31,7 +31,7 @@
 
 ## 📋 Descripción
 
-**Facturador"** es una aplicación web de página única (SPA) que permite gestionar ventas y emitir facturas en PDF sin servidores, sin base de datos y sin instalación. El comerciante abre el sitio en el navegador, importa su catálogo desde un CSV, escanea los ISBN con la cámara o los ingresa manualmente, y genera una factura profesional lista para imprimir o enviar.
+**¨Facturador"** es una aplicación web de página única (SPA) que permite gestionar ventas y emitir facturas en PDF sin servidores, sin base de datos y sin instalación. El comerciante abre el sitio en el navegador, importa su catálogo desde un CSV, escanea los ISBN con la cámara o los ingresa manualmente, y genera una factura profesional lista para imprimir o enviar.
 
 ---
 
