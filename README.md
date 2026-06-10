@@ -300,7 +300,7 @@ Los ISBN inválidos en el CSV se cargan igual (para no bloquear la importación 
 
 #### Problema 6: Cálculo de IVA diferenciado para libros
 
-En Argentina, los libros tienen alícuota de IVA reducida del 10,5%, mientras que otros artículos de librería (útiles, papelería) tributan el 21% estándar. El sistema debe discriminar correctamente.
+En el ejemplo del “Facturador” se aplica el criterio de que en Argentina los libros tienen una alícuota de IVA reducida del 10,5%, mientras que los artículos de librería (útiles y papelería) tributan el 21% estándar, por lo que el sistema debe discriminar correctamente entre ambas categorías. Sin embargo, en términos reales, los libros se encuentran exentos de IVA (0%), por lo que la conclusión para el sistema es que debe contemplar esta exención de forma precisa, asegurando una correcta clasificación de productos para aplicar el tratamiento impositivo correspondiente y evitar errores en la facturación.
 
 **Transformación aplicada:**
 
