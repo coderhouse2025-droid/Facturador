@@ -421,4 +421,4 @@ Para un sistema usado por un equipo técnico con herramientas de desarrollo disp
 
 ## 📄 Licencia
 
-MIT License — libre para uso, adaptación y distribución.
+Este proyecto está bajo la [Licencia MIT](LICENSE) — libre para uso como referencia, aprendizaje o desarrollo de proyectos propios.
